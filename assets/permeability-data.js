@@ -4,6 +4,7 @@
 
 export const PERMEABILITY_DATA = [
   {
+    "gas": "SF6",
     "name": "Freundeberg EPDM910",
     "unitKey": "ntp_hour_bar",
     "temperaturesC": {
@@ -11,6 +12,7 @@ export const PERMEABILITY_DATA = [
     }
   },
   {
+    "gas": "SF6",
     "name": "Freundeberg EPDM810",
     "unitKey": "ntp_hour_bar",
     "temperaturesC": {

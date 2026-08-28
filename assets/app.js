@@ -21,6 +21,7 @@ gasSelect.value = "He";
 const customRow = $("custom-molar-mass-row");
 gasSelect.addEventListener("change", () => {
   customRow.style.display = gasSelect.value === "custom" ? "grid" : "none";
+  oringList.querySelectorAll(".oring-card").forEach(refreshMaterialOptions);
 });
 
 function currentMolarMassKgPerMol() {
@@ -43,9 +44,14 @@ function renumberOrings() {
   });
 }
 
+function materialsForCurrentGas() {
+  return PERMEABILITY_DATA.filter((m) => m.gas === gasSelect.value);
+}
+
 function populateMaterialTempSelect(node) {
   const tempSelect = node.querySelector(".oring-material-temp");
-  const material = PERMEABILITY_DATA.find((m) => m.name === node.querySelector(".oring-material").value);
+  const materialSelect = node.querySelector(".oring-material");
+  const material = materialsForCurrentGas().find((m) => m.name === materialSelect.value);
   tempSelect.innerHTML = "";
   if (!material) {
     tempSelect.appendChild(new Option("temperature", ""));
@@ -59,6 +65,25 @@ function populateMaterialTempSelect(node) {
   }
 }
 
+// Refills the material dropdown with only the entries matching the
+// currently selected gas. If none match, there's nothing useful to pick
+// from, so the whole "Reference material" row is hidden and the plain
+// permeability input below is the only way to enter a value.
+function refreshMaterialOptions(node) {
+  const materials = materialsForCurrentGas();
+  const row = node.querySelector(".oring-material-row");
+  const materialSelect = node.querySelector(".oring-material");
+
+  row.style.display = materials.length === 0 ? "none" : "grid";
+
+  materialSelect.innerHTML = "";
+  materialSelect.appendChild(new Option("— none, enter manually —", ""));
+  for (const material of materials) {
+    materialSelect.appendChild(new Option(material.name, material.name));
+  }
+  populateMaterialTempSelect(node);
+}
+
 function addOring() {
   const node = oringTemplate.content.firstElementChild.cloneNode(true);
   node.querySelector(".remove-oring").addEventListener("click", () => {
@@ -66,19 +91,16 @@ function addOring() {
     renumberOrings();
   });
 
-  const materialSelect = node.querySelector(".oring-material");
-  for (const material of PERMEABILITY_DATA) {
-    materialSelect.appendChild(new Option(material.name, material.name));
-  }
-  materialSelect.addEventListener("change", () => populateMaterialTempSelect(node));
-
+  node.querySelector(".oring-material").addEventListener("change", () => populateMaterialTempSelect(node));
   node.querySelector(".oring-material-temp").addEventListener("change", (e) => {
     const tempC = e.target.value;
     if (tempC === "") return;
-    const material = PERMEABILITY_DATA.find((m) => m.name === materialSelect.value);
+    const materialSelect = node.querySelector(".oring-material");
+    const material = materialsForCurrentGas().find((m) => m.name === materialSelect.value);
     node.querySelector(".oring-permeability").value = material.temperaturesC[tempC];
     node.querySelector(".oring-permeabilityUnit").value = material.unitKey;
   });
+  refreshMaterialOptions(node);
 
   oringList.appendChild(node);
   renumberOrings();

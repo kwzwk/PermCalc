@@ -174,20 +174,27 @@ value to Barrer or SI first rather than using the NTP option directly.
 
 ## Material reference library
 
-Each O-ring card has an optional **Reference material** dropdown: pick a
-material, then a temperature, and the permeability coefficient field is
-filled in automatically. This is backed by
-`data/permeability-coefficients.csv` — a small, growable table of
-published gas/elastomer permeability values.
+Each O-ring card has an optional **Reference material** dropdown, filtered
+to the **gas selected above** — pick a material, then a temperature, and
+the permeability coefficient field is filled in automatically. This is
+backed by `data/permeability-coefficients.csv` — a small, growable table
+of published gas/elastomer permeability values. If no library entry
+matches the currently selected gas, the dropdown is hidden entirely and
+the permeability coefficient field below is just a plain input, since
+there's nothing useful to pick from.
 
-To add a material or a new temperature point: edit the CSV (semicolon
-delimited, comma decimals, one column per temperature — leave a cell
-empty if you don't have data for that point), then run:
+To add a material, gas, or a new temperature point: edit the CSV
+(semicolon delimited, comma decimals, one column per temperature — leave
+a cell empty if you don't have data for that point), then run:
 
 ```
 npm run generate-data   # regenerates assets/permeability-data.js from the CSV
 npm run build            # refreshes dist/PermCalc.html
 ```
+
+The `Gas` column must match a key in `assets/calc.js`'s `GASES` table
+(`He`, `N2`, `SF6`, ...) — `npm run generate-data` fails loudly, listing
+the valid keys, if it doesn't.
 
 If the CSV uses a permeability unit not already listed in
 `assets/calc.js`'s `PERMEABILITY_UNITS`, add it there first (see the
