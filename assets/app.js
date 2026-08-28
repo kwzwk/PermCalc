@@ -279,8 +279,12 @@ function renderBreakdown(result) {
 }
 
 // ---- main -----------------------------------------------------------------------
-$("calc-form").addEventListener("submit", (e) => {
-  e.preventDefault();
+// Recalculates and re-renders from the form's current values. Called on
+// every input/change (not just on Calculate) so the displayed result
+// never goes stale relative to what's actually in the fields — changing
+// a dimension and not pressing the button used to leave the old result
+// on screen, which reads as "changing this input does nothing."
+function recalculate() {
   showError("");
   const params = readParams();
 
@@ -334,8 +338,28 @@ $("calc-form").addEventListener("submit", (e) => {
 
   drawChart(result);
   renderBreakdown(result);
+}
+
+$("calc-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  recalculate();
+});
+
+// Live recalculation: number inputs debounce slightly so results don't
+// flicker mid-keystroke; selects (dropdowns, unit pickers) recompute
+// immediately since "change" only fires once a choice is made.
+let recalcTimer = null;
+const calcForm = $("calc-form");
+calcForm.addEventListener("input", () => {
+  clearTimeout(recalcTimer);
+  recalcTimer = setTimeout(recalculate, 200);
+});
+calcForm.addEventListener("change", () => {
+  clearTimeout(recalcTimer);
+  recalculate();
 });
 
 // initial state
 customRow.style.display = "none";
 addOring();
+recalculate();
