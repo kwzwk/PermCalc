@@ -73,9 +73,9 @@
         <p class="hint" style="margin-top:0;">
           A compartment can be sealed by more than one O-ring (redundant seals,
           separate ports, different compounds) — add one card per O-ring; their
-          permeation losses add together. In the model used here, each O-ring's
-          rate is roughly independent of its d2 and driven mainly by d1 — d2 is
-          still required for the transparent breakdown.
+          permeation losses add together. A thicker cord (d2) means a longer
+          diffusion path and less permeation; a wider contact band means more
+          exposed area and more permeation.
         </p>
         <div id="oring-list"></div>
         <button type="button" id="add-oring" class="secondary-button">+ Add O-ring</button>
@@ -102,10 +102,26 @@
             </div>
           </div>
           <div class="field">
-            <label>d2 — cross-section (cord) diameter</label>
+            <label>d2 — cross-section (cord) diameter
+              <span class="tip" title="The diffusion path length gas crosses to escape. Thicker cord = longer path = less permeation.">?</span>
+            </label>
             <div class="value-unit">
               <input type="number" class="oring-d2" step="any" min="0" value="3" />
               <select class="oring-d2Unit">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+                <option value="in">in</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Contact width
+              <span class="tip" title="Effective width of the O-ring's sealing band exposed to the pressure differential — set by groove/squeeze geometry, not by d2. Wider = more exposed area = more permeation. Defaults to d2; adjust if you know the actual compressed contact width.">?</span>
+            </label>
+            <div class="value-unit">
+              <input type="number" class="oring-width" step="any" min="0" value="3" />
+              <select class="oring-widthUnit">
                 <option value="mm" selected>mm</option>
                 <option value="cm">cm</option>
                 <option value="m">m</option>

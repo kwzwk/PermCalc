@@ -1,15 +1,17 @@
 // PermCalc — gas loss through O-ring permeation
 //
 // Model summary (see README.md for full derivation):
-//   - Each O-ring is treated as a thin cylindrical band unrolled from its
-//     torus: permeation area A = pi * d1 * d2, diffusion path length
-//     L = d2 (the cross-section/cord diameter). This is the standard
-//     first-order approximation used for elastomer seal permeation
-//     estimates, and it means the cross-section diameter d2 cancels out
-//     of the area/length ratio — the geometry factor reduces to
-//     k = A / L = pi * d1. d2 is still required/shown so the breakdown is
-//     transparent (and because it can be reintroduced by more detailed
-//     models later).
+//   - Each O-ring seals along a band around its torus: gas diffuses
+//     radially through the cord, so the diffusion path length is
+//     L = d2 (the cross-section/cord diameter) — a thicker cord is a
+//     longer barrier, and permeation drops as d2 increases. The exposed
+//     area that band diffuses through is A = pi * d1 * width, where
+//     "width" is the effective contact width of that exposed band —
+//     independent of d2, since it's set by the groove/contact geometry,
+//     not by the cord's own thickness. This keeps a real, standard
+//     permeability coefficient (Barrer, SI, ...) dimensionally valid:
+//     the geometry factor k = A / L = pi * d1 * width / d2 has units of
+//     length, as required by Q = P_SI * k * deltaP.
 //   - Steady-state Fickian permeation: molar flow Q_i = P_SI_i * k_i * deltaP
 //     for each O-ring i. A compartment may be sealed by more than one
 //     O-ring (e.g. redundant seals, different ports) — since they all vent
@@ -146,13 +148,17 @@ export function convert(value, unit, table) {
 
 /**
  * Convert one O-ring's raw form inputs into SI values plus its geometry
- * factor and permeation contribution K_i = P_SI_i * pi * d1_i.
+ * factor and permeation contribution K_i = P_SI_i * pi * d1_i * width_i / d2_i.
  *
  * @param {object} r
  * @param {number} r.d1 seal (mean) diameter of the O-ring
  * @param {string} r.d1Unit
- * @param {number} r.d2 cross-section (cord) diameter of the O-ring
+ * @param {number} r.d2 cross-section (cord) diameter of the O-ring —
+ *   the diffusion path length; thicker cord means less permeation
  * @param {string} r.d2Unit
+ * @param {number} r.width effective contact width of the O-ring's exposed
+ *   sealing band — independent of d2; wider band means more permeation
+ * @param {string} r.widthUnit
  * @param {number} r.permeability permeability coefficient value, at the
  *   compartment's operating temperature, for this O-ring's elastomer/gas pair
  * @param {string} r.permeabilityUnit
@@ -160,15 +166,18 @@ export function convert(value, unit, table) {
 export function computeOringSI(r) {
   const d1 = convert(r.d1, r.d1Unit, LENGTH_UNITS);
   const d2 = convert(r.d2, r.d2Unit, LENGTH_UNITS);
+  const width = convert(r.width, r.widthUnit, LENGTH_UNITS);
   const P_SI = convert(r.permeability, r.permeabilityUnit, PERMEABILITY_UNITS);
 
-  if (d1 <= 0 || d2 <= 0) throw new Error("O-ring dimensions must be positive.");
+  if (d1 <= 0 || d2 <= 0 || width <= 0) {
+    throw new Error("O-ring dimensions must be positive.");
+  }
   if (P_SI <= 0) throw new Error("Permeability coefficient must be positive.");
 
-  const geometryFactor = Math.PI * d1; // = A/L, with A = pi*d1*d2, L = d2
+  const geometryFactor = (Math.PI * d1 * width) / d2; // = A/L, A = pi*d1*width, L = d2
   const K = P_SI * geometryFactor; // mol/(s*Pa) per unit deltaP
 
-  return { d1, d2, P_SI, geometryFactor, K };
+  return { d1, d2, width, P_SI, geometryFactor, K };
 }
 
 /**

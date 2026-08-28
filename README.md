@@ -43,8 +43,11 @@ sync.
   compartment can be sealed by more than one O-ring (redundant seals,
   separate ports, different compounds), and their permeation losses add
   together. Each O-ring card has its own:
-  - **Dimensions**: `d1` (seal/mean diameter of the sealing circle) and
-    `d2` (cross-section / cord diameter).
+  - **Dimensions**: `d1` (seal/mean diameter of the sealing circle), `d2`
+    (cross-section / cord diameter — the diffusion path length; thicker
+    means less permeation), and **contact width** (the effective exposed
+    sealing band width — set by groove/squeeze geometry, independent of
+    `d2`; wider means more permeation, defaults to `d2`).
   - **Permeation coefficient** of the gas through *that* O-ring's
     elastomer, *at the operating temperature above*. This must come from
     the material supplier's datasheet (e.g. Parker, Trelleborg) — it is
@@ -57,35 +60,42 @@ sync.
 
 ### Geometry (per O-ring)
 
-Each O-ring is approximated as a thin cylindrical band unrolled from its
-torus shape:
+Gas diffuses radially through the O-ring's cord, from the high-pressure
+side to the low-pressure side:
 
-- Permeation area: `A = π · d1 · d2`
-- Diffusion path length: `L = d2` (gas travels radially through the cord
-  cross-section, from the high-pressure side to the low-pressure side)
+- Diffusion path length: `L = d2` (the cord cross-section diameter) — a
+  thicker cord is a longer barrier, so permeation *decreases* as `d2`
+  increases.
+- Permeation area: `A = π · d1 · width`, where `width` is the effective
+  contact width of the exposed sealing band (set by the groove/squeeze
+  geometry) — *independent* of `d2`, so permeation *increases* as `width`
+  increases.
 
 So the geometry factor is:
 
 ```
-A / L = π · d1
+A / L = π · d1 · width / d2
 ```
 
-**d2 cancels out of the first-order result.** This is a known, if
-counter-intuitive, property of this standard simplified model: a larger
-cross-section increases the permeation area and the diffusion path length
-by the same factor, so they cancel, and total permeation is driven mainly
-by the seal's mean diameter (circumference), not its cord thickness. `d2`
-is still a required input because it is shown explicitly in the
-"How this is calculated" breakdown, and because more detailed geometry
-models (partial groove contact, non-uniform exposure) would reintroduce a
-`d2` dependence.
+This keeps `width` decoupled from `d2` on purpose: for a real, standard
+permeability coefficient (Barrer, SI, ...) — defined via flat-membrane
+testing as `Flux = P · Area / Thickness` — `Area / Thickness` must have
+units of length. If `width` were instead set equal to `d2` (as in a naive
+"unrolled torus band" with matching width and thickness), `d2` would
+cancel out of the ratio entirely and the result would become independent
+of cord diameter, contradicting the well-established engineering result
+that a thicker cross-section improves permeation resistance. Decoupling
+`width` from `d2` is what lets both dimensions matter independently while
+keeping the permeability units dimensionally valid. `width` defaults to
+`d2` in the UI as a starting point — adjust it if you know the actual
+compressed contact width for your groove design.
 
 ### Permeation flux (multiple O-rings, in parallel)
 
 Steady-state Fickian permeation through O-ring `i`:
 
 ```
-Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · (P_compartment − P_external)
+Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · width_i / d2_i · (P_compartment − P_external)
 ```
 
 where `P_i` is that O-ring's permeability coefficient (SI: `mol/(m·s·Pa)`).
@@ -93,7 +103,7 @@ Every O-ring vents the same compartment to the same external environment,
 so their molar flows simply add:
 
 ```
-Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i)
+Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · width_i / d2_i)
 ```
 
 ### Pressure decay over time
@@ -148,8 +158,9 @@ value to Barrer or SI first rather than using the NTP option directly.
 - Permeability is assumed constant with pressure and independent of time
   (no swelling, plasticization, or aging effects).
 - The O-ring's exposed permeation geometry is approximated as described
-  above; it does not account for groove contact area, squeeze, or
-  multiple seals.
+  above (linear diffusion across the cord, uniform contact width); it does
+  not model the true 2D diffusion shape within the cross-section or
+  squeeze-dependent contact patch geometry in detail.
 - The compartment gas is treated as ideal; for very high pressures a
   real-gas compressibility correction would improve accuracy.
 - Any other leak paths (fittings, other seals, diffusion through solid

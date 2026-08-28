@@ -82,6 +82,8 @@ function readOrings() {
     d1Unit: card.querySelector(".oring-d1Unit").value,
     d2: parseFloat(card.querySelector(".oring-d2").value),
     d2Unit: card.querySelector(".oring-d2Unit").value,
+    width: parseFloat(card.querySelector(".oring-width").value),
+    widthUnit: card.querySelector(".oring-widthUnit").value,
     permeability: parseFloat(card.querySelector(".oring-permeability").value),
     permeabilityUnit: card.querySelector(".oring-permeabilityUnit").value,
   }));
@@ -202,7 +204,7 @@ function renderBreakdown(result) {
   const s = result.si;
   const rows = [
     ["Decay time-constant α", `${fmt(s.alpha)} s⁻¹  (1/α = ${fmtDuration(1 / s.alpha)})`],
-    ["Combined geometry×permeability  K_total = Σ(P·π·d1)", `${fmt(s.K_total)} mol/(s·Pa)`],
+    ["Combined geometry×permeability  K_total = Σ(P·π·d1·width/d2)", `${fmt(s.K_total)} mol/(s·Pa)`],
     ["P₀ (SI)", `${fmt(s.P0)} Pa`],
     ["Lockout pressure (SI)", `${fmt(s.Plock)} Pa`],
     ["External pressure (SI)", `${fmt(s.Pext)} Pa`],
@@ -212,8 +214,8 @@ function renderBreakdown(result) {
   result.orings.forEach((r, i) => {
     const share = (100 * r.K / s.K_total).toFixed(1);
     rows.push([
-      `O-ring ${i + 1}: d1 / d2 / P (SI)`,
-      `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
+      `O-ring ${i + 1}: d1 / d2 / width / P (SI)`,
+      `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.width)} m / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
     ]);
   });
   const table = $("breakdown-table");

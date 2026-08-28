@@ -16,6 +16,7 @@ function oring(overrides = {}) {
   return {
     d1: 50, d1Unit: "mm",
     d2: 3, d2Unit: "mm",
+    width: 3, widthUnit: "mm",
     permeability: 15, permeabilityUnit: "barrer",
     ...overrides,
   };
@@ -139,7 +140,7 @@ test("computePermeation: exponential decay reaches lockout pressure at t_lockout
   assert.ok(result.mass0 > 0);
 });
 
-test("larger cross-section diameter d2 alone does not change time to lockout", () => {
+test("thicker cord (d2 alone, width held fixed) means less permeation and longer time to lockout", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -147,9 +148,38 @@ test("larger cross-section diameter d2 alone does not change time to lockout", (
     pLock: 100, pLockUnit: "bar",
     pExt: 1, pExtUnit: "bar",
   };
-  const thin = computePermeation({ ...base, orings: [oring({ d2: 2, d2Unit: "mm" })] });
-  const thick = computePermeation({ ...base, orings: [oring({ d2: 6, d2Unit: "mm" })] });
-  assert.ok(Math.abs(thin.tLockoutSeconds - thick.tLockoutSeconds) < 1e-6);
+  const thin = computePermeation({
+    ...base,
+    orings: [oring({ d2: 2, d2Unit: "mm", width: 3, widthUnit: "mm" })],
+  });
+  const thick = computePermeation({
+    ...base,
+    orings: [oring({ d2: 6, d2Unit: "mm", width: 3, widthUnit: "mm" })],
+  });
+  assert.ok(thick.tLockoutSeconds > thin.tLockoutSeconds);
+  // Doubling d2 with width and d1 held fixed should exactly halve K (K ∝ 1/d2).
+  assert.ok(Math.abs(thick.si.K_total * 3 - thin.si.K_total) / thin.si.K_total < 1e-9);
+});
+
+test("wider contact band alone means more permeation and shorter time to lockout", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const narrow = computePermeation({
+    ...base,
+    orings: [oring({ d2: 3, d2Unit: "mm", width: 1, widthUnit: "mm" })],
+  });
+  const wide = computePermeation({
+    ...base,
+    orings: [oring({ d2: 3, d2Unit: "mm", width: 4, widthUnit: "mm" })],
+  });
+  assert.ok(wide.tLockoutSeconds < narrow.tLockoutSeconds);
+  // Quadrupling width with d1 and d2 held fixed should exactly quadruple K (K ∝ width).
+  assert.ok(Math.abs(wide.si.K_total - 4 * narrow.si.K_total) / narrow.si.K_total < 1e-9);
 });
 
 test("larger seal diameter d1 shortens time to lockout", () => {
