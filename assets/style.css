@@ -145,6 +145,63 @@ input[type="number"]:focus, select:focus {
   flex: none;
 }
 
+.oring-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.oring-card .hint { margin: 6px 0 0; }
+
+.oring-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.oring-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+button.remove-oring {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+button.remove-oring:hover { color: var(--bad); border-color: var(--bad); }
+button.remove-oring:disabled { opacity: 0.35; cursor: not-allowed; }
+
+button.secondary-button {
+  width: 100%;
+  padding: 9px;
+  border-radius: 7px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+button.secondary-button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 button#calculate {
   width: 100%;
   padding: 11px;

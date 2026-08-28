@@ -16,23 +16,27 @@ required — all calculations run client-side.
 ## Inputs
 
 - **Gas used** — selects a molar mass (used only for the mass-loss-rate
-  output; the permeability coefficient itself is entered manually).
+  output; each O-ring's permeability coefficient is entered manually).
 - **Compartment gas volume** and **operating temperature**.
-- **O-ring dimensions**: `d1` (seal/mean diameter of the sealing circle)
-  and `d2` (cross-section / cord diameter).
-- **Permeation coefficient** of the gas through the O-ring's elastomer,
-  *at the operating temperature above*. This must come from the material
-  supplier's datasheet (e.g. Parker, Trelleborg) — it is not looked up
-  automatically, since it depends strongly on the specific compound, cure,
-  and temperature.
+- **One or more O-rings**, added dynamically ("+ Add O-ring") — a
+  compartment can be sealed by more than one O-ring (redundant seals,
+  separate ports, different compounds), and their permeation losses add
+  together. Each O-ring card has its own:
+  - **Dimensions**: `d1` (seal/mean diameter of the sealing circle) and
+    `d2` (cross-section / cord diameter).
+  - **Permeation coefficient** of the gas through *that* O-ring's
+    elastomer, *at the operating temperature above*. This must come from
+    the material supplier's datasheet (e.g. Parker, Trelleborg) — it is
+    not looked up automatically, since it depends strongly on the specific
+    compound, cure, and temperature.
 - **Initial pressure**, **lockout pressure**, and the gas's **external
-  partial pressure** (all absolute).
+  partial pressure** (all absolute, shared by the whole compartment).
 
 ## Model
 
-### Geometry
+### Geometry (per O-ring)
 
-The O-ring is approximated as a thin cylindrical band unrolled from its
+Each O-ring is approximated as a thin cylindrical band unrolled from its
 torus shape:
 
 - Permeation area: `A = π · d1 · d2`
@@ -55,16 +59,21 @@ is still a required input because it is shown explicitly in the
 models (partial groove contact, non-uniform exposure) would reintroduce a
 `d2` dependence.
 
-### Permeation flux
+### Permeation flux (multiple O-rings, in parallel)
 
-Steady-state Fickian permeation:
+Steady-state Fickian permeation through O-ring `i`:
 
 ```
-Q = P · (A / L) · ΔP = P · π · d1 · (P_compartment − P_external)
+Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · (P_compartment − P_external)
 ```
 
-where `P` is the permeability coefficient (SI: `mol/(m·s·Pa)`) and `Q` is
-the molar flow rate of gas leaving the compartment.
+where `P_i` is that O-ring's permeability coefficient (SI: `mol/(m·s·Pa)`).
+Every O-ring vents the same compartment to the same external environment,
+so their molar flows simply add:
+
+```
+Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i)
+```
 
 ### Pressure decay over time
 
@@ -72,7 +81,7 @@ Treating the compartment gas as ideal (`n = P·V / (R·T)`, constant `V` and
 `T`) gives a linear first-order ODE:
 
 ```
-dP/dt = -(R·T / V) · P · π · d1 · (P(t) − P_external)
+dP/dt = -(R·T / V) · K_total · (P(t) − P_external)
       = -α · (P(t) − P_external)
 ```
 

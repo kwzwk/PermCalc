@@ -1,7 +1,7 @@
 // PermCalc — gas loss through O-ring permeation
 //
 // Model summary (see README.md for full derivation):
-//   - The O-ring is treated as a thin cylindrical band unrolled from the
+//   - Each O-ring is treated as a thin cylindrical band unrolled from its
 //     torus: permeation area A = pi * d1 * d2, diffusion path length
 //     L = d2 (the cross-section/cord diameter). This is the standard
 //     first-order approximation used for elastomer seal permeation
@@ -10,9 +10,13 @@
 //     k = A / L = pi * d1. d2 is still required/shown so the breakdown is
 //     transparent (and because it can be reintroduced by more detailed
 //     models later).
-//   - Steady-state Fickian permeation: molar flow Q = P_SI * k * deltaP.
+//   - Steady-state Fickian permeation: molar flow Q_i = P_SI_i * k_i * deltaP
+//     for each O-ring i. A compartment may be sealed by more than one
+//     O-ring (e.g. redundant seals, different ports) — since they all vent
+//     the same gas volume to the same external environment in parallel,
+//     their molar flows simply add: Q_total = sum_i(Q_i).
 //   - Mass balance on the compartment (ideal gas, constant V and T):
-//       dP/dt = -(R*T/V) * P_SI * k * (P(t) - P_ext)
+//       dP/dt = -(R*T/V) * K * (P(t) - P_ext),  K = sum_i(P_SI_i * k_i)
 //     which integrates in closed form to an exponential decay.
 //
 // All internal computation uses SI base units (m, m^3, Pa, K, s, mol).
@@ -72,6 +76,7 @@ export const GASES = {
   Ar: { label: "Argon (Ar)", molarMass: 0.039948 },
   CO2: { label: "Carbon dioxide (CO2)", molarMass: 0.0440095 },
   CH4: { label: "Methane (CH4)", molarMass: 0.0160425 },
+  SF6: { label: "Sulfur hexafluoride (SF6)", molarMass: 0.1460554 },
   custom: { label: "Custom / other", molarMass: null },
 };
 
@@ -97,21 +102,45 @@ export function convert(value, unit, table) {
 }
 
 /**
+ * Convert one O-ring's raw form inputs into SI values plus its geometry
+ * factor and permeation contribution K_i = P_SI_i * pi * d1_i.
+ *
+ * @param {object} r
+ * @param {number} r.d1 seal (mean) diameter of the O-ring
+ * @param {string} r.d1Unit
+ * @param {number} r.d2 cross-section (cord) diameter of the O-ring
+ * @param {string} r.d2Unit
+ * @param {number} r.permeability permeability coefficient value, at the
+ *   compartment's operating temperature, for this O-ring's elastomer/gas pair
+ * @param {string} r.permeabilityUnit
+ */
+export function computeOringSI(r) {
+  const d1 = convert(r.d1, r.d1Unit, LENGTH_UNITS);
+  const d2 = convert(r.d2, r.d2Unit, LENGTH_UNITS);
+  const P_SI = convert(r.permeability, r.permeabilityUnit, PERMEABILITY_UNITS);
+
+  if (d1 <= 0 || d2 <= 0) throw new Error("O-ring dimensions must be positive.");
+  if (P_SI <= 0) throw new Error("Permeability coefficient must be positive.");
+
+  const geometryFactor = Math.PI * d1; // = A/L, with A = pi*d1*d2, L = d2
+  const K = P_SI * geometryFactor; // mol/(s*Pa) per unit deltaP
+
+  return { d1, d2, P_SI, geometryFactor, K };
+}
+
+/**
  * Core calculation. All inputs are plain numbers with an accompanying
  * unit key; internal math happens entirely in SI units.
  *
  * @param {object} p
- * @param {number} p.d1 seal (mean) diameter of the O-ring
- * @param {string} p.d1Unit
- * @param {number} p.d2 cross-section (cord) diameter of the O-ring
- * @param {string} p.d2Unit
+ * @param {object[]} p.orings one or more O-rings sealing the compartment
+ *   (see computeOringSI for each entry's shape) — their permeation flows
+ *   add in parallel.
  * @param {number} p.volume compartment gas volume
  * @param {string} p.volumeUnit
  * @param {number} p.temperature operating temperature (must match the
- *   temperature the permeability coefficient was measured/quoted at)
+ *   temperature each O-ring's permeability coefficient was measured/quoted at)
  * @param {string} p.temperatureUnit
- * @param {number} p.permeability permeability coefficient value
- * @param {string} p.permeabilityUnit
  * @param {number} p.p0 initial compartment pressure (absolute)
  * @param {string} p.p0Unit
  * @param {number} p.pLock lockout pressure (absolute)
@@ -121,19 +150,18 @@ export function convert(value, unit, table) {
  * @param {number|null} [p.molarMass] kg/mol, required for mass-flow outputs
  */
 export function computePermeation(p) {
-  const d1 = convert(p.d1, p.d1Unit, LENGTH_UNITS);
-  const d2 = convert(p.d2, p.d2Unit, LENGTH_UNITS);
+  if (!Array.isArray(p.orings) || p.orings.length === 0) {
+    throw new Error("At least one O-ring is required.");
+  }
+
   const V = convert(p.volume, p.volumeUnit, VOLUME_UNITS);
   const T = temperatureToKelvin(p.temperature, p.temperatureUnit);
-  const P_SI = convert(p.permeability, p.permeabilityUnit, PERMEABILITY_UNITS);
   const P0 = convert(p.p0, p.p0Unit, PRESSURE_UNITS);
   const Plock = convert(p.pLock, p.pLockUnit, PRESSURE_UNITS);
   const Pext = convert(p.pExt, p.pExtUnit, PRESSURE_UNITS);
 
-  if (d1 <= 0 || d2 <= 0) throw new Error("O-ring dimensions must be positive.");
   if (V <= 0) throw new Error("Compartment volume must be positive.");
   if (T <= 0) throw new Error("Temperature must be above absolute zero.");
-  if (P_SI <= 0) throw new Error("Permeability coefficient must be positive.");
   if (P0 <= 0 || Plock <= 0) throw new Error("Pressures must be positive.");
   if (Pext < 0) throw new Error("External pressure cannot be negative.");
   if (Plock <= Pext) {
@@ -145,14 +173,15 @@ export function computePermeation(p) {
     throw new Error("Initial pressure must be greater than the lockout pressure.");
   }
 
-  const geometryFactor = Math.PI * d1; // = A/L, with A = pi*d1*d2, L = d2
+  const orings = p.orings.map(computeOringSI);
+  const K_total = orings.reduce((sum, r) => sum + r.K, 0); // mol/(s*Pa)
 
   // Time-constant of the exponential pressure decay: dP/dt = -alpha*(P-Pext)
-  const alpha = (R_GAS * T * P_SI * geometryFactor) / V; // 1/s
+  const alpha = (R_GAS * T * K_total) / V; // 1/s
 
   const tLockoutSeconds = Math.log((P0 - Pext) / (Plock - Pext)) / alpha;
 
-  const molarFlow0 = P_SI * geometryFactor * (P0 - Pext); // mol/s, at t=0
+  const molarFlow0 = K_total * (P0 - Pext); // mol/s, at t=0, all O-rings combined
   const volumetricFlow0_STP = molarFlow0 * V_MOLAR_STP; // m^3(STP)/s, at t=0
 
   const n0 = (P0 * V) / (R_GAS * T); // mol of gas in compartment initially
@@ -162,7 +191,8 @@ export function computePermeation(p) {
 
   return {
     // SI intermediate values, exposed for the breakdown panel
-    si: { d1, d2, V, T, P_SI, P0, Plock, Pext, geometryFactor, alpha },
+    si: { V, T, P0, Plock, Pext, K_total, alpha },
+    orings, // per-O-ring SI breakdown, in input order
     tLockoutSeconds,
     molarFlow0,
     volumetricFlow0_STP,

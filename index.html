@@ -69,60 +69,69 @@
       </fieldset>
 
       <fieldset>
-        <legend>O-ring dimensions</legend>
-        <div class="field">
-          <label for="d1">d1 — seal (mean) diameter
-            <span class="tip" title="Mean diameter of the sealing circle, i.e. approximately ID + cross-section diameter (CS). Using bore/shaft ID alone is an acceptable approximation for large ID/CS ratios.">?</span>
-          </label>
-          <div class="value-unit">
-            <input type="number" id="d1" step="any" min="0" value="50" />
-            <select id="d1Unit">
-              <option value="mm" selected>mm</option>
-              <option value="cm">cm</option>
-              <option value="m">m</option>
-              <option value="in">in</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label for="d2">d2 — cross-section (cord) diameter</label>
-          <div class="value-unit">
-            <input type="number" id="d2" step="any" min="0" value="3" />
-            <select id="d2Unit">
-              <option value="mm" selected>mm</option>
-              <option value="cm">cm</option>
-              <option value="m">m</option>
-              <option value="in">in</option>
-            </select>
-          </div>
-        </div>
-        <p class="hint">
-          In the model used here (see “How this is calculated” below), the total permeation
-          rate reduces to being roughly independent of d2 and driven mainly by d1 — d2 is
+        <legend>O-rings</legend>
+        <p class="hint" style="margin-top:0;">
+          A compartment can be sealed by more than one O-ring (redundant seals,
+          separate ports, different compounds) — add one card per O-ring; their
+          permeation losses add together. In the model used here, each O-ring's
+          rate is roughly independent of its d2 and driven mainly by d1 — d2 is
           still required for the transparent breakdown.
         </p>
+        <div id="oring-list"></div>
+        <button type="button" id="add-oring" class="secondary-button">+ Add O-ring</button>
       </fieldset>
 
-      <fieldset>
-        <legend>Permeation coefficient</legend>
-        <div class="field wide">
-          <label for="permeability">Value, at the operating temperature above</label>
-          <div class="value-unit">
-            <input type="number" id="permeability" step="any" min="0" value="15" />
-            <select id="permeabilityUnit">
-              <option value="barrer" selected>Barrer</option>
-              <option value="traditional">cm³(STP)·cm / (cm²·s·cmHg)</option>
-              <option value="practical">cm³(STP)·mm / (m²·day·atm)</option>
-              <option value="si">mol / (m·s·Pa)  [SI]</option>
-            </select>
+      <template id="oring-template">
+        <div class="oring-card">
+          <div class="oring-card-header">
+            <span class="oring-card-title"></span>
+            <button type="button" class="remove-oring" title="Remove this O-ring" aria-label="Remove this O-ring">✕</button>
           </div>
+          <div class="field">
+            <label>d1 — seal (mean) diameter
+              <span class="tip" title="Mean diameter of the sealing circle, i.e. approximately ID + cross-section diameter (CS). Using bore/shaft ID alone is an acceptable approximation for large ID/CS ratios.">?</span>
+            </label>
+            <div class="value-unit">
+              <input type="number" class="oring-d1" step="any" min="0" value="50" />
+              <select class="oring-d1Unit">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+                <option value="in">in</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>d2 — cross-section (cord) diameter</label>
+            <div class="value-unit">
+              <input type="number" class="oring-d2" step="any" min="0" value="3" />
+              <select class="oring-d2Unit">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+                <option value="in">in</option>
+              </select>
+            </div>
+          </div>
+          <div class="field wide">
+            <label>Permeability coefficient, at operating temp.</label>
+            <div class="value-unit">
+              <input type="number" class="oring-permeability" step="any" min="0" value="15" />
+              <select class="oring-permeabilityUnit">
+                <option value="barrer" selected>Barrer</option>
+                <option value="traditional">cm³(STP)·cm / (cm²·s·cmHg)</option>
+                <option value="practical">cm³(STP)·mm / (m²·day·atm)</option>
+                <option value="si">mol / (m·s·Pa)  [SI]</option>
+              </select>
+            </div>
+          </div>
+          <p class="hint">
+            Get this from the elastomer/gas combination's datasheet (e.g. Parker,
+            Trelleborg) at your operating temperature — it is not looked up
+            automatically, since it varies by compound, cure, and temperature.
+          </p>
         </div>
-        <p class="hint">
-          Get this from the elastomer/gas combination's datasheet (e.g. Parker,
-          Trelleborg) at your operating temperature — it is not looked up
-          automatically, since it varies by compound, cure, and temperature.
-        </p>
-      </fieldset>
+      </template>
 
       <fieldset>
         <legend>Pressures (absolute)</legend>

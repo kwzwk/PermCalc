@@ -10,6 +10,15 @@ import {
   secondsTo,
 } from "../assets/calc.js";
 
+function oring(overrides = {}) {
+  return {
+    d1: 50, d1Unit: "mm",
+    d2: 3, d2Unit: "mm",
+    permeability: 15, permeabilityUnit: "barrer",
+    ...overrides,
+  };
+}
+
 test("unit conversions: length", () => {
   assert.equal(convert(10, "mm", LENGTH_UNITS), 0.01);
   assert.equal(convert(1, "in", LENGTH_UNITS), 0.0254);
@@ -32,11 +41,9 @@ test("1 Barrer is ~3.3465e-16 SI mol/(m*s*Pa)", () => {
 
 test("computePermeation rejects non-physical inputs", () => {
   const base = {
-    d1: 50, d1Unit: "mm",
-    d2: 3, d2Unit: "mm",
+    orings: [oring()],
     volume: 1, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
-    permeability: 10, permeabilityUnit: "barrer",
     p0: 100, p0Unit: "bar",
     pLock: 50, pLockUnit: "bar",
     pExt: 0, pExtUnit: "bar",
@@ -44,16 +51,15 @@ test("computePermeation rejects non-physical inputs", () => {
 
   assert.throws(() => computePermeation({ ...base, pLock: 150 }), /greater than the lockout/);
   assert.throws(() => computePermeation({ ...base, pExt: 60 }), /greater than the external/);
-  assert.throws(() => computePermeation({ ...base, d1: 0 }), /positive/);
+  assert.throws(() => computePermeation({ ...base, orings: [oring({ d1: 0 })] }), /positive/);
+  assert.throws(() => computePermeation({ ...base, orings: [] }), /at least one o-ring/i);
 });
 
 test("computePermeation: exponential decay reaches lockout pressure at t_lockout", () => {
   const result = computePermeation({
-    d1: 50, d1Unit: "mm",
-    d2: 3, d2Unit: "mm",
+    orings: [oring()],
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
-    permeability: 15, permeabilityUnit: "barrer",
     p0: 200, p0Unit: "bar",
     pLock: 100, pLockUnit: "bar",
     pExt: 1, pExtUnit: "bar",
@@ -86,32 +92,60 @@ test("computePermeation: exponential decay reaches lockout pressure at t_lockout
 
 test("larger cross-section diameter d2 alone does not change time to lockout", () => {
   const base = {
-    d1: 50, d1Unit: "mm",
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
-    permeability: 15, permeabilityUnit: "barrer",
     p0: 200, p0Unit: "bar",
     pLock: 100, pLockUnit: "bar",
     pExt: 1, pExtUnit: "bar",
   };
-  const thin = computePermeation({ ...base, d2: 2, d2Unit: "mm" });
-  const thick = computePermeation({ ...base, d2: 6, d2Unit: "mm" });
+  const thin = computePermeation({ ...base, orings: [oring({ d2: 2, d2Unit: "mm" })] });
+  const thick = computePermeation({ ...base, orings: [oring({ d2: 6, d2Unit: "mm" })] });
   assert.ok(Math.abs(thin.tLockoutSeconds - thick.tLockoutSeconds) < 1e-6);
 });
 
 test("larger seal diameter d1 shortens time to lockout", () => {
   const base = {
-    d2: 3, d2Unit: "mm",
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
-    permeability: 15, permeabilityUnit: "barrer",
     p0: 200, p0Unit: "bar",
     pLock: 100, pLockUnit: "bar",
     pExt: 1, pExtUnit: "bar",
   };
-  const small = computePermeation({ ...base, d1: 30, d1Unit: "mm" });
-  const large = computePermeation({ ...base, d1: 90, d1Unit: "mm" });
+  const small = computePermeation({ ...base, orings: [oring({ d1: 30, d1Unit: "mm" })] });
+  const large = computePermeation({ ...base, orings: [oring({ d1: 90, d1Unit: "mm" })] });
   assert.ok(large.tLockoutSeconds < small.tLockoutSeconds);
+});
+
+test("multiple O-rings combine in parallel: two identical rings permeate twice as fast as one", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const one = computePermeation({ ...base, orings: [oring()] });
+  const two = computePermeation({ ...base, orings: [oring(), oring()] });
+  assert.ok(Math.abs(two.si.K_total - 2 * one.si.K_total) < 1e-30);
+  assert.ok(Math.abs(two.molarFlow0 - 2 * one.molarFlow0) / one.molarFlow0 < 1e-9);
+  // Faster loss -> shorter time to lockout.
+  assert.ok(two.tLockoutSeconds < one.tLockoutSeconds);
+});
+
+test("a second, very low-permeability O-ring barely changes the result", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const one = computePermeation({ ...base, orings: [oring()] });
+  const withTiny = computePermeation({
+    ...base,
+    orings: [oring(), oring({ permeability: 1e-6, permeabilityUnit: "barrer" })],
+  });
+  assert.ok(Math.abs(withTiny.tLockoutSeconds - one.tLockoutSeconds) / one.tLockoutSeconds < 1e-4);
 });
 
 test("secondsTo converts across duration units", () => {

@@ -1,7 +1,6 @@
 import {
   computePermeation,
   GASES,
-  V_MOLAR_STP,
   secondsTo,
   bestDurationUnit,
 } from "./calc.js";
@@ -31,6 +30,31 @@ function currentMolarMassKgPerMol() {
   return Number.isFinite(grams) && grams > 0 ? grams / 1000 : null;
 }
 
+// ---- O-ring cards -----------------------------------------------------------
+const oringList = $("oring-list");
+const oringTemplate = $("oring-template");
+
+function renumberOrings() {
+  const cards = oringList.querySelectorAll(".oring-card");
+  cards.forEach((card, i) => {
+    card.querySelector(".oring-card-title").textContent = `O-ring ${i + 1}`;
+    card.querySelector(".remove-oring").disabled = cards.length === 1;
+  });
+}
+
+function addOring() {
+  const node = oringTemplate.content.firstElementChild.cloneNode(true);
+  node.querySelector(".remove-oring").addEventListener("click", () => {
+    node.remove();
+    renumberOrings();
+  });
+  oringList.appendChild(node);
+  renumberOrings();
+  return node;
+}
+
+$("add-oring").addEventListener("click", () => addOring());
+
 // ---- number formatting ------------------------------------------------------
 function fmt(value, sig = 3) {
   if (!Number.isFinite(value)) return "—";
@@ -51,14 +75,24 @@ function fmtDuration(seconds) {
 }
 
 // ---- form -> params ----------------------------------------------------------
+function readOrings() {
+  const cards = oringList.querySelectorAll(".oring-card");
+  return Array.from(cards).map((card) => ({
+    d1: parseFloat(card.querySelector(".oring-d1").value),
+    d1Unit: card.querySelector(".oring-d1Unit").value,
+    d2: parseFloat(card.querySelector(".oring-d2").value),
+    d2Unit: card.querySelector(".oring-d2Unit").value,
+    permeability: parseFloat(card.querySelector(".oring-permeability").value),
+    permeabilityUnit: card.querySelector(".oring-permeabilityUnit").value,
+  }));
+}
+
 function readParams() {
   const v = (id) => parseFloat($(id).value);
   return {
-    d1: v("d1"), d1Unit: $("d1Unit").value,
-    d2: v("d2"), d2Unit: $("d2Unit").value,
+    orings: readOrings(),
     volume: v("volume"), volumeUnit: $("volumeUnit").value,
     temperature: v("temperature"), temperatureUnit: $("temperatureUnit").value,
-    permeability: v("permeability"), permeabilityUnit: $("permeabilityUnit").value,
     p0: v("p0"), p0Unit: $("p0Unit").value,
     pLock: v("pLock"), pLockUnit: $("pLockUnit").value,
     pExt: v("pExt"), pExtUnit: $("pExtUnit").value,
@@ -73,7 +107,7 @@ function showError(message) {
 }
 
 // ---- chart --------------------------------------------------------------------
-function drawChart(result, params) {
+function drawChart(result) {
   const canvas = $("chart");
   const dpr = window.devicePixelRatio || 1;
   const cssWidth = canvas.clientWidth || 860;
@@ -167,17 +201,21 @@ function drawChart(result, params) {
 function renderBreakdown(result) {
   const s = result.si;
   const rows = [
-    ["Geometry factor  A/L = π·d1", `${fmt(s.geometryFactor)} m`],
-    ["Permeability coefficient (SI)", `${fmt(s.P_SI)} mol/(m·s·Pa)`],
     ["Decay time-constant α", `${fmt(s.alpha)} s⁻¹  (1/α = ${fmtDuration(1 / s.alpha)})`],
+    ["Combined geometry×permeability  K_total = Σ(P·π·d1)", `${fmt(s.K_total)} mol/(s·Pa)`],
     ["P₀ (SI)", `${fmt(s.P0)} Pa`],
     ["Lockout pressure (SI)", `${fmt(s.Plock)} Pa`],
     ["External pressure (SI)", `${fmt(s.Pext)} Pa`],
     ["Operating temperature", `${fmt(s.T)} K`],
-    ["d1 (SI)", `${fmt(s.d1)} m`],
-    ["d2 (SI)", `${fmt(s.d2)} m`],
     ["Compartment volume (SI)", `${fmt(s.V)} m³`],
   ];
+  result.orings.forEach((r, i) => {
+    const share = (100 * r.K / s.K_total).toFixed(1);
+    rows.push([
+      `O-ring ${i + 1}: d1 / d2 / P (SI)`,
+      `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
+    ]);
+  });
   const table = $("breakdown-table");
   table.innerHTML =
     "<tr><th>Quantity</th><th>Value</th></tr>" +
@@ -190,8 +228,20 @@ $("calc-form").addEventListener("submit", (e) => {
   showError("");
   const params = readParams();
 
-  for (const [key, value] of Object.entries(params)) {
-    if (typeof value === "number" && !Number.isFinite(value)) {
+  if (params.orings.length === 0) {
+    showError("Add at least one O-ring.");
+    return;
+  }
+  for (const [i, r] of params.orings.entries()) {
+    for (const [key, value] of Object.entries(r)) {
+      if (typeof value === "number" && !Number.isFinite(value)) {
+        showError(`O-ring ${i + 1}: "${key}" is missing or not a number.`);
+        return;
+      }
+    }
+  }
+  for (const key of ["volume", "temperature", "p0", "pLock", "pExt"]) {
+    if (!Number.isFinite(params[key])) {
       showError(`Please fill in all fields — "${key}" is missing or not a number.`);
       return;
     }
@@ -226,9 +276,10 @@ $("calc-form").addEventListener("submit", (e) => {
   $("stat-charge-mass").textContent =
     result.mass0 != null ? `${fmt(result.mass0 * 1000)} g` : "";
 
-  drawChart(result, params);
+  drawChart(result);
   renderBreakdown(result);
 });
 
 // initial state
 customRow.style.display = "none";
+addOring();
