@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PermCalc — O-ring Gas Permeation Loss Calculator</title>
+<link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+<header>
+  <h1>PermCalc</h1>
+  <p>
+    Estimate how fast a gas-charged, O-ring-sealed compartment loses pressure to
+    permeation through the elastomer, and how long until it decays to a
+    lockout (minimum functional) pressure.
+  </p>
+</header>
+
+<main>
+  <section class="panel" id="form-panel">
+    <h2>Inputs</h2>
+    <div id="error-box"></div>
+    <form id="calc-form">
+
+      <fieldset>
+        <legend>Gas</legend>
+        <div class="field">
+          <label for="gas">Gas used</label>
+          <select id="gas"></select>
+        </div>
+        <div class="field" id="custom-molar-mass-row" style="display:none;">
+          <label for="molarMass">Molar mass</label>
+          <div class="value-unit">
+            <input type="number" id="molarMass" step="any" min="0" value="28.0" />
+            <select disabled><option>g/mol</option></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Compartment</legend>
+        <div class="field">
+          <label for="volume">Gas volume</label>
+          <div class="value-unit">
+            <input type="number" id="volume" step="any" min="0" value="1" />
+            <select id="volumeUnit">
+              <option value="cm3">cm³</option>
+              <option value="L" selected>L</option>
+              <option value="m3">m³</option>
+              <option value="in3">in³</option>
+              <option value="ft3">ft³</option>
+              <option value="gal_us">US gal</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="temperature">Operating temp.
+            <span class="tip" title="Use the same temperature the permeability coefficient below was measured/quoted at — permeation is strongly temperature dependent.">?</span>
+          </label>
+          <div class="value-unit">
+            <input type="number" id="temperature" step="any" value="23" />
+            <select id="temperatureUnit">
+              <option value="C" selected>°C</option>
+              <option value="K">K</option>
+              <option value="F">°F</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>O-ring dimensions</legend>
+        <div class="field">
+          <label for="d1">d1 — seal (mean) diameter
+            <span class="tip" title="Mean diameter of the sealing circle, i.e. approximately ID + cross-section diameter (CS). Using bore/shaft ID alone is an acceptable approximation for large ID/CS ratios.">?</span>
+          </label>
+          <div class="value-unit">
+            <input type="number" id="d1" step="any" min="0" value="50" />
+            <select id="d1Unit">
+              <option value="mm" selected>mm</option>
+              <option value="cm">cm</option>
+              <option value="m">m</option>
+              <option value="in">in</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="d2">d2 — cross-section (cord) diameter</label>
+          <div class="value-unit">
+            <input type="number" id="d2" step="any" min="0" value="3" />
+            <select id="d2Unit">
+              <option value="mm" selected>mm</option>
+              <option value="cm">cm</option>
+              <option value="m">m</option>
+              <option value="in">in</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">
+          In the model used here (see “How this is calculated” below), the total permeation
+          rate reduces to being roughly independent of d2 and driven mainly by d1 — d2 is
+          still required for the transparent breakdown.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Permeation coefficient</legend>
+        <div class="field wide">
+          <label for="permeability">Value, at the operating temperature above</label>
+          <div class="value-unit">
+            <input type="number" id="permeability" step="any" min="0" value="15" />
+            <select id="permeabilityUnit">
+              <option value="barrer" selected>Barrer</option>
+              <option value="traditional">cm³(STP)·cm / (cm²·s·cmHg)</option>
+              <option value="practical">cm³(STP)·mm / (m²·day·atm)</option>
+              <option value="si">mol / (m·s·Pa)  [SI]</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">
+          Get this from the elastomer/gas combination's datasheet (e.g. Parker,
+          Trelleborg) at your operating temperature — it is not looked up
+          automatically, since it varies by compound, cure, and temperature.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pressures (absolute)</legend>
+        <div class="field">
+          <label for="p0">Initial pressure P₀</label>
+          <div class="value-unit">
+            <input type="number" id="p0" step="any" min="0" value="200" />
+            <select id="p0Unit" class="pressure-unit">
+              <option value="Pa">Pa</option>
+              <option value="kPa">kPa</option>
+              <option value="MPa">MPa</option>
+              <option value="bar" selected>bar</option>
+              <option value="psi">psi</option>
+              <option value="atm">atm</option>
+              <option value="cmHg">cmHg</option>
+              <option value="mmHg">mmHg</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="pLock">Lockout pressure</label>
+          <div class="value-unit">
+            <input type="number" id="pLock" step="any" min="0" value="100" />
+            <select id="pLockUnit" class="pressure-unit">
+              <option value="Pa">Pa</option>
+              <option value="kPa">kPa</option>
+              <option value="MPa">MPa</option>
+              <option value="bar" selected>bar</option>
+              <option value="psi">psi</option>
+              <option value="atm">atm</option>
+              <option value="cmHg">cmHg</option>
+              <option value="mmHg">mmHg</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="pExt">External partial pressure
+            <span class="tip" title="Partial pressure of this specific gas outside the compartment. Usually ~0 for gases that are rare in ambient air (e.g. helium); use the ambient partial pressure otherwise (e.g. ~0.21 atm for O2 in air).">?</span>
+          </label>
+          <div class="value-unit">
+            <input type="number" id="pExt" step="any" min="0" value="0" />
+            <select id="pExtUnit" class="pressure-unit">
+              <option value="Pa">Pa</option>
+              <option value="kPa">kPa</option>
+              <option value="MPa">MPa</option>
+              <option value="bar" selected>bar</option>
+              <option value="psi">psi</option>
+              <option value="atm">atm</option>
+              <option value="cmHg">cmHg</option>
+              <option value="mmHg">mmHg</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <button type="submit" id="calculate">Calculate</button>
+    </form>
+  </section>
+
+  <section class="panel" id="results-panel">
+    <h2>Results</h2>
+    <div id="results-placeholder" class="placeholder">
+      Fill in the inputs and press Calculate.
+    </div>
+    <div id="results-body" style="display:none;">
+      <div class="results-grid">
+        <div class="stat headline">
+          <div class="label">Time to lockout pressure</div>
+          <div class="big" id="stat-time"></div>
+          <div class="sub" id="stat-time-alt"></div>
+        </div>
+        <div class="stat">
+          <div class="label">Initial permeation rate</div>
+          <div class="big" id="stat-rate"></div>
+          <div class="sub" id="stat-rate-mass"></div>
+        </div>
+        <div class="stat">
+          <div class="label">Initial gas charge</div>
+          <div class="big" id="stat-charge"></div>
+          <div class="sub" id="stat-charge-mass"></div>
+        </div>
+      </div>
+
+      <div id="chart-wrap">
+        <canvas id="chart" width="900" height="280"></canvas>
+      </div>
+
+      <details>
+        <summary>How this is calculated</summary>
+        <table class="breakdown" id="breakdown-table"></table>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>
+    Estimation tool for engineering screening purposes — not a substitute for
+    manufacturer permeation test data or a qualified seal design review.
+    See <a href="README.md">README.md</a> for the full derivation, assumptions and unit
+    conventions. All calculations run locally in your browser; no data is
+    sent anywhere.
+  </p>
+</footer>
+
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>

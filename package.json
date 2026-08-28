@@ -1,0 +1,10 @@
+{
+  "name": "permcalc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gas loss calculator for O-ring permeation seals",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/calc.test.js"
+  }
+}
