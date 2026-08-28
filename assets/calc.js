@@ -23,6 +23,12 @@
 
 export const R_GAS = 8.314462618; // J/(mol*K)
 export const V_MOLAR_STP = 22414e-6; // m^3/mol at 0 C, 1 atm (22,414 cm^3/mol)
+// "NTP" (Normal Temperature and Pressure) has no single universal
+// definition; this uses the common 20 C / 1 atm convention (NIST, SEMI),
+// giving ~24,055 cm^3/mol. If your datasheet uses a different NTP
+// convention (e.g. 25 C, or 1 bar), its coefficient won't match this
+// option exactly — convert it to Barrer or SI first in that case.
+export const V_MOLAR_NTP = (R_GAS * 293.15) / 101325; // m^3/mol at 20 C, 1 atm
 
 // ---------------------------------------------------------------------
 // Unit conversion tables (multiply value by factor to get SI base unit)
@@ -55,6 +61,18 @@ export const PRESSURE_UNITS = {
   mmHg: 133.3223874,
 };
 
+// Converts a "cm3(gas) * mm / (area * time * pressure)" style permeability
+// coefficient (the general form of practical/packaging-style units, e.g.
+// cm3(STP)*mm/(m2*day*atm)) into the SI base unit mol/(m*s*Pa).
+//   molarVolume: m^3/mol for the gas-volume convention used (STP, NTP, ...)
+//   areaM2: m^2 per 1 unit of the area used (m^2 -> 1, mm^2 -> 1e-6)
+//   timeSeconds: seconds per 1 unit of the time used (day -> 86400, h -> 3600)
+//   pressurePa: Pa per 1 unit of the pressure used (bar -> 1e5, atm -> 101325)
+function practicalUnitFactor({ molarVolume, areaM2, timeSeconds, pressurePa }) {
+  const molarVolumeCm3PerMol = molarVolume * 1e6;
+  return 0.001 / (areaM2 * pressurePa * molarVolumeCm3PerMol * timeSeconds);
+}
+
 // Permeability coefficient unit -> SI mol/(m*s*Pa)
 export const PERMEABILITY_UNITS = {
   // SI: mol/(m*s*Pa)
@@ -65,6 +83,31 @@ export const PERMEABILITY_UNITS = {
   traditional: 3.3465e-6,
   // "Practical" / packaging-style units: cm^3(STP)*mm / (m^2*day*atm)
   practical: 5.0958e-18,
+  // Same, but with bar instead of atm: cm^3(STP)*mm / (m^2*day*bar)
+  practical_bar: practicalUnitFactor({
+    molarVolume: V_MOLAR_STP,
+    areaM2: 1,
+    timeSeconds: 86400,
+    pressurePa: 1e5,
+  }),
+  // Same, but per mm^2 of area instead of m^2: cm^3(STP)*mm / (mm^2*day*bar)
+  practical_mm2_bar: practicalUnitFactor({
+    molarVolume: V_MOLAR_STP,
+    areaM2: 1e-6,
+    timeSeconds: 86400,
+    pressurePa: 1e5,
+  }),
+  // cm^3(NTP)*mm / (m^2*h*bar) — NTP per V_MOLAR_NTP's convention above
+  ntp_hour_bar: practicalUnitFactor({
+    molarVolume: V_MOLAR_NTP,
+    areaM2: 1,
+    timeSeconds: 3600,
+    pressurePa: 1e5,
+  }),
+  // "Volumetric SI": m^3(STP) / (m*s*Pa), i.e. m^2/(s*Pa) with an STP tag —
+  // same physical quantity as `si` but expressed as STP-normalized gas
+  // volume instead of moles: P_si = P_si_vol / V_MOLAR_STP.
+  si_vol: 1 / V_MOLAR_STP,
 };
 
 export const GASES = {

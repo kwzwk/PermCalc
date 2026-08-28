@@ -121,7 +121,11 @@
                 <option value="barrer" selected>Barrer</option>
                 <option value="traditional">cm³(STP)·cm / (cm²·s·cmHg)</option>
                 <option value="practical">cm³(STP)·mm / (m²·day·atm)</option>
+                <option value="practical_bar">cm³(STP)·mm / (m²·day·bar)</option>
+                <option value="practical_mm2_bar">cm³(STP)·mm / (mm²·day·bar)</option>
+                <option value="ntp_hour_bar">cm³(NTP)·mm / (m²·h·bar)</option>
                 <option value="si">mol / (m·s·Pa)  [SI]</option>
+                <option value="si_vol">m³(STP) / (m·s·Pa)  [SI, volumetric]</option>
               </select>
             </div>
           </div>
@@ -129,6 +133,8 @@
             Get this from the elastomer/gas combination's datasheet (e.g. Parker,
             Trelleborg) at your operating temperature — it is not looked up
             automatically, since it varies by compound, cure, and temperature.
+            The "NTP" option assumes 20 °C / 1 atm (~24,055 cm³/mol); if your
+            source uses a different NTP convention, convert to Barrer or SI first.
           </p>
         </div>
       </template>

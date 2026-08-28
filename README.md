@@ -128,10 +128,20 @@ Supported permeability coefficient units:
 - **Barrer** (`1 Barrer = 1×10⁻¹⁰ cm³(STP)·cm / (cm²·s·cmHg)`)
 - **Traditional**: `cm³(STP)·cm / (cm²·s·cmHg)`
 - **Practical / packaging-style**: `cm³(STP)·mm / (m²·day·atm)`
+- **Practical, bar**: `cm³(STP)·mm / (m²·day·bar)`
+- **Practical, per mm²**: `cm³(STP)·mm / (mm²·day·bar)`
+- **NTP, hourly**: `cm³(NTP)·mm / (m²·h·bar)`
 - **SI**: `mol / (m·s·Pa)`
+- **SI, volumetric**: `m³(STP) / (m·s·Pa)` — the same SI unit expressed as
+  STP-normalized gas volume instead of moles (`P_si = P_si_vol / V_MOLAR_STP`)
 
 `STP` is taken as 0 °C / 1 atm (molar volume 22,414 cm³/mol), matching the
 convention traditional permeability constants are usually quoted under.
+`NTP` has no single universal definition across industries; this tool
+uses the common 20 °C / 1 atm convention (NIST/SEMI), giving a molar
+volume of ~24,055 cm³/mol. If your datasheet's "NTP" means something
+else (e.g. 25 °C, or referenced to 1 bar instead of 1 atm), convert its
+value to Barrer or SI first rather than using the NTP option directly.
 
 ## Assumptions and limitations
 

@@ -6,6 +6,8 @@ import {
   LENGTH_UNITS,
   PRESSURE_UNITS,
   PERMEABILITY_UNITS,
+  V_MOLAR_STP,
+  V_MOLAR_NTP,
   temperatureToKelvin,
   secondsTo,
 } from "../assets/calc.js";
@@ -37,6 +39,53 @@ test("unit conversions: temperature", () => {
 
 test("1 Barrer is ~3.3465e-16 SI mol/(m*s*Pa)", () => {
   assert.ok(Math.abs(PERMEABILITY_UNITS.barrer - 3.3465e-16) < 1e-20);
+});
+
+test("practical_bar relates to practical (atm) by the atm/bar ratio", () => {
+  const ratio = PRESSURE_UNITS.atm / PRESSURE_UNITS.bar; // bar is smaller -> bar-based factor is larger
+  const actual = PERMEABILITY_UNITS.practical_bar / PERMEABILITY_UNITS.practical;
+  // `practical` is a hand-rounded literal (~5 sig figs), so allow for that
+  // rounding rather than requiring exact agreement with the freshly
+  // computed practical_bar.
+  assert.ok(Math.abs(actual - ratio) / ratio < 1e-3);
+});
+
+test("practical_mm2_bar is 1e6x practical_bar (mm^2 is 1e-6 of m^2)", () => {
+  const ratio = PERMEABILITY_UNITS.practical_mm2_bar / PERMEABILITY_UNITS.practical_bar;
+  assert.ok(Math.abs(ratio - 1e6) / 1e6 < 1e-9);
+});
+
+test("ntp_hour_bar matches a manual derivation from exported constants", () => {
+  const expected = 0.001 / (1 * PRESSURE_UNITS.bar * (V_MOLAR_NTP * 1e6) * 3600);
+  assert.ok(Math.abs(PERMEABILITY_UNITS.ntp_hour_bar - expected) / expected < 1e-9);
+});
+
+test("si_vol equals 1/V_MOLAR_STP (volumetric SI vs. molar SI)", () => {
+  assert.ok(Math.abs(PERMEABILITY_UNITS.si_vol - 1 / V_MOLAR_STP) / PERMEABILITY_UNITS.si_vol < 1e-12);
+});
+
+test("si_vol permeability values give the same result as the equivalent si (mol-based) value", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const pMol = 1e-14; // arbitrary mol/(m*s*Pa)
+  const pVol = pMol * V_MOLAR_STP; // equivalent m^3(STP)/(m*s*Pa)
+
+  const viaMol = computePermeation({
+    ...base,
+    orings: [oring({ permeability: pMol, permeabilityUnit: "si" })],
+  });
+  const viaVol = computePermeation({
+    ...base,
+    orings: [oring({ permeability: pVol, permeabilityUnit: "si_vol" })],
+  });
+  assert.ok(
+    Math.abs(viaMol.tLockoutSeconds - viaVol.tLockoutSeconds) / viaMol.tLockoutSeconds < 1e-9
+  );
 });
 
 test("computePermeation rejects non-physical inputs", () => {
