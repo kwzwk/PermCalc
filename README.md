@@ -9,9 +9,30 @@ that must be replaced/recharged once its internal pressure permeates down
 to a minimum functional threshold — this tool gives a first-pass estimate
 of that service life.
 
-Open `index.html` directly in a browser, or serve the folder statically
-(e.g. `npx http-server .`) and no build step or network access is
-required — all calculations run client-side.
+`index.html` loads `assets/calc.js` and `assets/app.js` as ES modules, so
+browsers require it to be served over `http(s)://` — opening it directly
+via `file://` (double-clicking it) will fail with a CORS error on module
+loading. Serve the folder statically instead, e.g.:
+
+```
+npx http-server .
+```
+
+No build step or network access is required beyond that — all
+calculations run client-side.
+
+### Desktop / offline use (no server)
+
+```
+npm run build
+```
+
+produces `dist/PermCalc.html` — a single self-contained file (CSS and JS
+inlined, no ES modules) that you can save to your desktop and just
+double-click to open directly, with no server and no install. It's
+generated from the same `assets/calc.js` / `assets/app.js` source (see
+`build-standalone.js`), so there's only one copy of the logic to keep in
+sync.
 
 ## Inputs
 
@@ -130,11 +151,12 @@ convention traditional permeability constants are usually quoted under.
 ## Project layout
 
 ```
-index.html        UI markup
-assets/style.css   styling
-assets/calc.js      pure calculation functions (unit conversion, physics)
-assets/app.js        DOM wiring, results rendering, chart drawing
-test/calc.test.js    Node test suite for assets/calc.js
+index.html            UI markup
+assets/style.css        styling
+assets/calc.js            pure calculation functions (unit conversion, physics)
+assets/app.js                DOM wiring, results rendering, chart drawing
+test/calc.test.js            Node test suite for assets/calc.js
+build-standalone.js       bundles the above into dist/PermCalc.html (see above)
 ```
 
 ## Running tests
