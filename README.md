@@ -43,11 +43,12 @@ sync.
   compartment can be sealed by more than one O-ring (redundant seals,
   separate ports, different compounds), and their permeation losses add
   together. Each O-ring card has its own:
-  - **Dimensions**: `d1` (seal/mean diameter of the sealing circle), `d2`
-    (cross-section / cord diameter — the diffusion path length; thicker
-    means less permeation), and **contact width** (the effective exposed
-    sealing band width — set by groove/squeeze geometry, independent of
-    `d2`; wider means more permeation, defaults to `d2`).
+  - **Dimensions**: `d1` (inner diameter / ID, as shown in a standard
+    O-ring schema), `d2` (cross-section / cord diameter — the diffusion
+    path length; thicker means less permeation), and **contact width**
+    (the effective exposed sealing band width — set by groove/squeeze
+    geometry, independent of `d2`; wider means more permeation, defaults
+    to `d2`).
   - **Permeation coefficient** of the gas through *that* O-ring's
     elastomer, *at the operating temperature above*. Pick a **material and
     temperature** from the built-in reference dropdown to fill this in

@@ -151,7 +151,7 @@ export function convert(value, unit, table) {
  * factor and permeation contribution K_i = P_SI_i * pi * d1_i * width_i / d2_i.
  *
  * @param {object} r
- * @param {number} r.d1 seal (mean) diameter of the O-ring
+ * @param {number} r.d1 inner diameter (ID) of the O-ring
  * @param {string} r.d1Unit
  * @param {number} r.d2 cross-section (cord) diameter of the O-ring —
  *   the diffusion path length; thicker cord means less permeation
