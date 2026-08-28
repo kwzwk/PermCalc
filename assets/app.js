@@ -4,6 +4,7 @@ import {
   secondsTo,
   bestDurationUnit,
 } from "./calc.js";
+import { PERMEABILITY_DATA } from "./permeability-data.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,12 +43,43 @@ function renumberOrings() {
   });
 }
 
+function populateMaterialTempSelect(node) {
+  const tempSelect = node.querySelector(".oring-material-temp");
+  const material = PERMEABILITY_DATA.find((m) => m.name === node.querySelector(".oring-material").value);
+  tempSelect.innerHTML = "";
+  if (!material) {
+    tempSelect.appendChild(new Option("temperature", ""));
+    tempSelect.disabled = true;
+    return;
+  }
+  tempSelect.disabled = false;
+  tempSelect.appendChild(new Option("select temperature…", ""));
+  for (const tempC of Object.keys(material.temperaturesC).map(Number).sort((a, b) => a - b)) {
+    tempSelect.appendChild(new Option(`${tempC} °C`, String(tempC)));
+  }
+}
+
 function addOring() {
   const node = oringTemplate.content.firstElementChild.cloneNode(true);
   node.querySelector(".remove-oring").addEventListener("click", () => {
     node.remove();
     renumberOrings();
   });
+
+  const materialSelect = node.querySelector(".oring-material");
+  for (const material of PERMEABILITY_DATA) {
+    materialSelect.appendChild(new Option(material.name, material.name));
+  }
+  materialSelect.addEventListener("change", () => populateMaterialTempSelect(node));
+
+  node.querySelector(".oring-material-temp").addEventListener("change", (e) => {
+    const tempC = e.target.value;
+    if (tempC === "") return;
+    const material = PERMEABILITY_DATA.find((m) => m.name === materialSelect.value);
+    node.querySelector(".oring-permeability").value = material.temperaturesC[tempC];
+    node.querySelector(".oring-permeabilityUnit").value = material.unitKey;
+  });
+
   oringList.appendChild(node);
   renumberOrings();
   return node;

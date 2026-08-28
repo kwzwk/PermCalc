@@ -130,6 +130,19 @@
             </div>
           </div>
           <div class="field wide">
+            <label>Reference material
+              <span class="tip" title="Optional: pick a material and temperature from the built-in reference library to fill in the permeability coefficient below. See data/permeability-coefficients.csv to add more.">?</span>
+            </label>
+            <div class="value-unit two-select">
+              <select class="oring-material">
+                <option value="" selected>— none, enter manually —</option>
+              </select>
+              <select class="oring-material-temp" disabled>
+                <option value="">temperature</option>
+              </select>
+            </div>
+          </div>
+          <div class="field wide">
             <label>Permeability coefficient, at operating temp.</label>
             <div class="value-unit">
               <input type="number" class="oring-permeability" step="any" min="0" value="15" />

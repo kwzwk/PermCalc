@@ -109,6 +109,7 @@ fieldset legend {
 
 .field.wide { grid-template-columns: 1fr; }
 .field.wide .value-unit { grid-template-columns: 1fr 130px; }
+.field.wide .value-unit.two-select { grid-template-columns: 1fr 1fr; }
 
 input[type="number"], select {
   background: #0e1424;

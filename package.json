@@ -5,7 +5,8 @@
   "description": "Gas loss calculator for O-ring permeation seals",
   "type": "module",
   "scripts": {
-    "test": "node --test test/calc.test.js",
-    "build": "node build-standalone.js"
+    "test": "node --test test/calc.test.js test/permeability-data.test.js",
+    "build": "node build-standalone.js",
+    "generate-data": "node generate-permeability-data.js"
   }
 }

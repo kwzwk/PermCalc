@@ -18,12 +18,15 @@ const calcJs = readFileSync(join(root, "assets/calc.js"), "utf8").replace(
   /^export\s+/gm,
   ""
 );
-const appJs = readFileSync(join(root, "assets/app.js"), "utf8").replace(
-  /^import\s*\{[^}]*\}\s*from\s*["']\.\/calc\.js["'];?\s*\n/m,
+const dataJs = readFileSync(join(root, "assets/permeability-data.js"), "utf8").replace(
+  /^export\s+/gm,
   ""
 );
+const appJs = readFileSync(join(root, "assets/app.js"), "utf8")
+  .replace(/^import\s*\{[^}]*\}\s*from\s*["']\.\/calc\.js["'];?\s*\n/m, "")
+  .replace(/^import\s*\{[^}]*\}\s*from\s*["']\.\/permeability-data\.js["'];?\s*\n/m, "");
 
-const bundledScript = `<script>\n(function () {\n"use strict";\n${calcJs}\n${appJs}\n})();\n</script>`;
+const bundledScript = `<script>\n(function () {\n"use strict";\n${calcJs}\n${dataJs}\n${appJs}\n})();\n</script>`;
 
 let out = html
   .replace(

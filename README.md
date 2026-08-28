@@ -49,10 +49,13 @@ sync.
     sealing band width — set by groove/squeeze geometry, independent of
     `d2`; wider means more permeation, defaults to `d2`).
   - **Permeation coefficient** of the gas through *that* O-ring's
-    elastomer, *at the operating temperature above*. This must come from
-    the material supplier's datasheet (e.g. Parker, Trelleborg) — it is
-    not looked up automatically, since it depends strongly on the specific
-    compound, cure, and temperature.
+    elastomer, *at the operating temperature above*. Pick a **material and
+    temperature** from the built-in reference dropdown to fill this in
+    automatically (see "Material reference library" below), or enter it
+    manually from a supplier's datasheet (e.g. Parker, Trelleborg) — it is
+    not looked up automatically for values outside the reference library,
+    since it depends strongly on the specific compound, cure, and
+    temperature.
 - **Initial pressure**, **lockout pressure**, and the gas's **external
   partial pressure** (all absolute, shared by the whole compartment).
 
@@ -169,15 +172,43 @@ value to Barrer or SI first rather than using the NTP option directly.
 - This is an engineering screening estimate, not a substitute for
   measured permeation test data or a full seal design review.
 
+## Material reference library
+
+Each O-ring card has an optional **Reference material** dropdown: pick a
+material, then a temperature, and the permeability coefficient field is
+filled in automatically. This is backed by
+`data/permeability-coefficients.csv` — a small, growable table of
+published gas/elastomer permeability values.
+
+To add a material or a new temperature point: edit the CSV (semicolon
+delimited, comma decimals, one column per temperature — leave a cell
+empty if you don't have data for that point), then run:
+
+```
+npm run generate-data   # regenerates assets/permeability-data.js from the CSV
+npm run build            # refreshes dist/PermCalc.html
+```
+
+If the CSV uses a permeability unit not already listed in
+`assets/calc.js`'s `PERMEABILITY_UNITS`, add it there first (see the
+Units section above), then map the CSV's unit label to it in
+`UNIT_LABEL_TO_KEY` inside `generate-permeability-data.js` —
+`npm run generate-data` fails loudly with the exact label to add if it's
+missing, rather than silently guessing.
+
 ## Project layout
 
 ```
-index.html            UI markup
-assets/style.css        styling
-assets/calc.js            pure calculation functions (unit conversion, physics)
-assets/app.js                DOM wiring, results rendering, chart drawing
-test/calc.test.js            Node test suite for assets/calc.js
-build-standalone.js       bundles the above into dist/PermCalc.html (see above)
+index.html                          UI markup
+assets/style.css                      styling
+assets/calc.js                          pure calculation functions (unit conversion, physics)
+assets/app.js                              DOM wiring, results rendering, chart drawing
+assets/permeability-data.js                  generated material reference library (see below)
+data/permeability-coefficients.csv              source CSV for the above
+generate-permeability-data.js                     regenerates assets/permeability-data.js from the CSV
+test/calc.test.js                          Node test suite for assets/calc.js
+test/permeability-data.test.js               Node test suite for the material reference library
+build-standalone.js                     bundles the above into dist/PermCalc.html (see above)
 ```
 
 ## Running tests
