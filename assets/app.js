@@ -259,7 +259,7 @@ function renderBreakdown(result) {
   const s = result.si;
   const rows = [
     ["Decay time-constant α", `${fmt(s.alpha)} s⁻¹  (1/α = ${fmtDuration(1 / s.alpha)})`],
-    ["Combined geometry×permeability  K_total = Σ(P·π·d1·width / (d2·(1−squeeze)))", `${fmt(s.K_total)} mol/(s·Pa)`],
+    ["Combined geometry×permeability  K_total = Σ(P·π·d1·width·(1−squeeze) / d2)", `${fmt(s.K_total)} mol/(s·Pa)`],
     ["P₀ (SI)", `${fmt(s.P0)} Pa`],
     ["Lockout pressure (SI)", `${fmt(s.Plock)} Pa`],
     ["External pressure (SI)", `${fmt(s.Pext)} Pa`],
@@ -273,8 +273,8 @@ function renderBreakdown(result) {
       `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.width)} m / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
     ]);
     rows.push([
-      `O-ring ${i + 1}: diffusion path  d2·(1−squeeze)`,
-      `${fmt(r.d2)} m × (1 − ${r.squeezePct}%) = ${fmt(r.pathLength)} m`,
+      `O-ring ${i + 1}: diffusion path  d2 ÷ (1−squeeze)  [ellipse major axis]`,
+      `${fmt(r.d2)} m ÷ (1 − ${r.squeezePct}%) = ${fmt(r.pathLength)} m`,
     ]);
   });
   const table = $("breakdown-table");

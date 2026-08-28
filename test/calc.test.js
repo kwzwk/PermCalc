@@ -228,7 +228,7 @@ test("a second, very low-permeability O-ring barely changes the result", () => {
   assert.ok(Math.abs(withTiny.tLockoutSeconds - one.tLockoutSeconds) / one.tLockoutSeconds < 1e-4);
 });
 
-test("squeeze thins the diffusion path: more squeeze means more permeation", () => {
+test("squeeze bulges the cord into an ellipse, lengthening the path: less permeation", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -239,11 +239,33 @@ test("squeeze thins the diffusion path: more squeeze means more permeation", () 
   const loose = computePermeation({ ...base, orings: [oring({ squeezePct: 0 })] });
   const tight = computePermeation({ ...base, orings: [oring({ squeezePct: 50 })] });
 
-  assert.ok(tight.tLockoutSeconds < loose.tLockoutSeconds);
-  // 50% squeeze halves the path, so K exactly doubles.
-  assert.ok(Math.abs(tight.si.K_total - 2 * loose.si.K_total) / loose.si.K_total < 1e-9);
-  // And the reported effective path is d2*(1-squeeze).
-  assert.ok(Math.abs(tight.orings[0].pathLength - 0.003 * 0.5) < 1e-12);
+  assert.ok(tight.tLockoutSeconds > loose.tLockoutSeconds);
+  // 50% squeeze doubles the major axis, so K exactly halves.
+  assert.ok(Math.abs(tight.si.K_total - 0.5 * loose.si.K_total) / loose.si.K_total < 1e-9);
+  // Reported path is the ellipse major axis d2/(1-squeeze).
+  assert.ok(Math.abs(tight.orings[0].pathLength - 0.003 / 0.5) < 1e-12);
+});
+
+test("squeezed cross-section conserves area (incompressible ellipse)", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const d2 = 0.003; // 3 mm in SI
+  for (const squeezePct of [0, 15, 25, 40]) {
+    const r = computePermeation({ ...base, orings: [oring({ squeezePct })] }).orings[0];
+    const major = r.pathLength;
+    const minor = d2 * (1 - squeezePct / 100);
+    const ellipseArea = Math.PI / 4 * major * minor;
+    const circleArea = Math.PI / 4 * d2 * d2;
+    assert.ok(
+      Math.abs(ellipseArea - circleArea) / circleArea < 1e-12,
+      `cross-section area must be conserved at ${squeezePct}% squeeze`
+    );
+  }
 });
 
 test("shrinking d2 alone still shortens the path and speeds up permeation, at any squeeze", () => {

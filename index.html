@@ -73,10 +73,11 @@
         <p class="hint" style="margin-top:0;">
           A compartment can be sealed by more than one O-ring (redundant seals,
           separate ports, different compounds) — add one card per O-ring; their
-          permeation losses add together. The gas crosses the compressed cord,
-          so the diffusion path is d2 × (1 − squeeze): a thicker cord lengthens
-          it (less permeation), while more squeeze thins it (more permeation).
-          A wider contact band exposes more area, also increasing permeation.
+          permeation losses add together. Squeezing deforms the round cord into an
+          equal-area ellipse, and the gas crosses along its major axis, so the
+          diffusion path is d2 ÷ (1 − squeeze): a thicker cord or more squeeze
+          both lengthen it (less permeation). A wider contact band exposes more
+          area, increasing permeation.
         </p>
         <div id="oring-list"></div>
         <button type="button" id="add-oring" class="secondary-button">+ Add O-ring</button>
@@ -118,7 +119,7 @@
           </div>
           <div class="field">
             <label>Squeeze / compression
-              <span class="tip" title="How much the cord is compressed in its gland, as a percentage of d2. Typical installed O-rings run 15–30%. Squeeze thins the diffusion barrier (path = d2 × (1 − squeeze)), so more squeeze means more permeation — even though it improves sealing against real leakage.">?</span>
+              <span class="tip" title="How much the cord is compressed in its gland, as a percentage of d2. Typical installed O-rings run 15–30%. Rubber is incompressible, so squeezing deforms the round cord into an equal-area ellipse that bulges sideways: the gas path is the major axis, d2 ÷ (1 − squeeze). More squeeze therefore means a longer path and less permeation.">?</span>
             </label>
             <div class="value-unit">
               <input type="number" class="oring-squeeze" step="any" min="0" max="99" value="20" />

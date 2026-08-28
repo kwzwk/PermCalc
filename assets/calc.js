@@ -1,11 +1,13 @@
 // PermCalc — gas loss through O-ring permeation
 //
 // Model summary (see README.md for full derivation):
-//   - Each O-ring seals along a band around its torus: gas diffuses
-//     radially through the cord, so the diffusion path length is the
-//     *compressed* cord height L = d2 * (1 - squeeze). A thicker cord is
-//     a longer barrier (permeation drops as d2 rises); squeezing the same
-//     cord harder thins that barrier (permeation rises with squeeze).
+//   - Each O-ring seals along a band around its torus. Squeezing the cord
+//     deforms its circular cross-section into an equal-area ellipse, and
+//     gas crosses the seal along that ellipse's major axis, so the
+//     diffusion path is L = d2 / (1 - squeeze). A thicker cord is a longer
+//     barrier (permeation drops as d2 rises); squeezing harder makes the
+//     cord bulge wider, lengthening the path (permeation drops with
+//     squeeze too).
 //     The exposed area that band diffuses through is A = pi * d1 * width,
 //     where "width" is the effective contact width of that exposed band —
 //     independent of d2, since it's set by the groove/contact geometry,
@@ -152,18 +154,19 @@ export function convert(value, unit, table) {
  * factor and permeation contribution
  * K_i = P_SI_i * pi * d1_i * width_i / (d2_i * (1 - squeeze_i)).
  *
- * The installed O-ring is squeezed in its gland, so the barrier the gas
- * actually crosses is not the free cord diameter but the *compressed*
- * cord height:
+ * The installed O-ring is squeezed in its gland. Rubber is essentially
+ * incompressible, so the circular cross-section does not just get thinner
+ * — it deforms into an ellipse of the same area, bulging out sideways.
+ * With squeeze c, the minor axis (squeeze direction) is d2*(1-c), so
+ * conserving area pi/4*d2^2 = pi/4 * minor * major gives:
  *
- *   L_eff = d2 * (1 - squeeze)
+ *   L_eff = major axis = d2 / (1 - squeeze)
  *
- * That gives both behaviours the model needs: a thinner cord shortens the
- * path (more permeation), and squeezing the same cord harder also shortens
- * it (more permeation). Note that higher squeeze improving *sealing* and
- * higher squeeze increasing *permeation* are not in conflict — squeeze
- * closes real leak paths while simultaneously thinning the diffusion
- * barrier.
+ * Gas crosses the seal along that major axis (high-pressure face to
+ * low-pressure face, perpendicular to the squeeze direction), so squeeze
+ * LENGTHENS the diffusion path and reduces permeation. A thinner cord
+ * still shortens the path (more permeation), since L stays proportional
+ * to d2.
  *
  * @param {object} r
  * @param {number} r.d1 inner diameter (ID) of the O-ring
@@ -197,7 +200,9 @@ export function computeOringSI(r) {
   if (P_SI <= 0) throw new Error("Permeability coefficient must be positive.");
 
   const squeeze = squeezePct / 100;
-  const pathLength = d2 * (1 - squeeze); // compressed cord height
+  // Incompressible ellipse: area conserved, so minor = d2*(1-squeeze)
+  // and major = d2/(1-squeeze). Gas crosses along the major axis.
+  const pathLength = d2 / (1 - squeeze);
   const geometryFactor = (Math.PI * d1 * width) / pathLength; // = A/L
   const K = P_SI * geometryFactor; // mol/(s*Pa) per unit deltaP
 

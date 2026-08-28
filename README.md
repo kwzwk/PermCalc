@@ -67,10 +67,15 @@ sync.
 Gas diffuses radially through the O-ring's *installed* (compressed) cord,
 from the high-pressure side to the low-pressure side:
 
-- Diffusion path length: `L = d2 · (1 − squeeze)` — the compressed cord
-  height. A thicker cord is a longer barrier (permeation *decreases* as
-  `d2` increases), and squeezing the same cord harder thins that barrier
-  (permeation *increases* with squeeze).
+- Diffusion path length: `L = d2 / (1 − squeeze)`. Rubber is essentially
+  incompressible, so squeezing does not merely thin the cord — it deforms
+  the circular cross-section into an **equal-area ellipse** that bulges
+  sideways. With minor axis `d2·(1 − squeeze)`, conserving the area
+  `π/4·d2²` forces a major axis of `d2/(1 − squeeze)`. Gas crosses the
+  seal along that major axis (high-pressure face to low-pressure face,
+  perpendicular to the squeeze), so **more squeeze lengthens the path and
+  reduces permeation**. A thicker cord also lengthens it, since `L` stays
+  proportional to `d2`.
 - Permeation area: `A = π · d1 · width`, where `width` is the effective
   contact width of the exposed sealing band (set by the groove/contact
   geometry) — *independent* of `d2`, so permeation *increases* as `width`
@@ -79,13 +84,11 @@ from the high-pressure side to the low-pressure side:
 So the geometry factor is:
 
 ```
-A / L = π · d1 · width / (d2 · (1 − squeeze))
+A / L = π · d1 · width · (1 − squeeze) / d2
 ```
 
-Note that "more squeeze increases permeation" is not in conflict with
-squeeze improving a seal: squeeze closes real leak paths (bypass leakage)
-while simultaneously thinning the diffusion barrier that permeation must
-cross. They are two different transport mechanisms.
+This means squeeze helps on both counts: it closes real bypass leak paths
+*and* lengthens the diffusion path that permeation must cross.
 
 This keeps `width` decoupled from `d2` on purpose: for a real, standard
 permeability coefficient (Barrer, SI, ...) — defined via flat-membrane
@@ -103,8 +106,8 @@ the contact-band depth from your groove design; `d2` and `squeeze` set
 the barrier thickness. They answer different questions:
 
 - *"I changed to a thinner cord in the same gland"* → lower `d2`, and
-  raise `squeeze` (a thinner cord in a fixed groove is compressed less,
-  so in practice you would lower it — check your actual gland depth).
+  lower `squeeze` too (a thinner cord in a fixed-depth groove is
+  compressed less) — check your actual gland depth.
 - *"I scaled the whole seal geometrically"* → if you scale `width` and
   `d2` together at constant squeeze, permeation is genuinely unchanged.
   That is a real physical result, not a modelling artefact: geometrically
@@ -115,7 +118,7 @@ the barrier thickness. They answer different questions:
 Steady-state Fickian permeation through O-ring `i`:
 
 ```
-Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · width_i / (d2_i · (1 − squeeze_i)) · (P_compartment − P_external)
+Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · width_i · (1 − squeeze_i) / d2_i · (P_compartment − P_external)
 ```
 
 where `P_i` is that O-ring's permeability coefficient (SI: `mol/(m·s·Pa)`).
@@ -123,7 +126,7 @@ Every O-ring vents the same compartment to the same external environment,
 so their molar flows simply add:
 
 ```
-Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · width_i / (d2_i · (1 − squeeze_i)))
+Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · width_i · (1 − squeeze_i) / d2_i)
 ```
 
 ### Pressure decay over time
