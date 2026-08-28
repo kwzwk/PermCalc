@@ -44,11 +44,11 @@ sync.
   separate ports, different compounds), and their permeation losses add
   together. Each O-ring card has its own:
   - **Dimensions**: `d1` (inner diameter / ID, as shown in a standard
-    O-ring schema), `d2` (cross-section / cord diameter — the diffusion
-    path length; thicker means less permeation), and **contact width**
-    (the effective exposed sealing band width — set by groove/squeeze
-    geometry, independent of `d2`; wider means more permeation, defaults
-    to `d2`).
+    O-ring schema), `d2` (free cross-section / cord diameter),
+    **squeeze / compression** (percent of `d2` the cord is compressed in
+    its gland — typically 15–30% installed), and **contact width** (the
+    effective exposed sealing band width — the *depth* of the permeation
+    area, set by groove/contact geometry rather than by `d2` itself).
   - **Permeation coefficient** of the gas through *that* O-ring's
     elastomer, *at the operating temperature above*. Pick a **material and
     temperature** from the built-in reference dropdown to fill this in
@@ -64,42 +64,58 @@ sync.
 
 ### Geometry (per O-ring)
 
-Gas diffuses radially through the O-ring's cord, from the high-pressure
-side to the low-pressure side:
+Gas diffuses radially through the O-ring's *installed* (compressed) cord,
+from the high-pressure side to the low-pressure side:
 
-- Diffusion path length: `L = d2` (the cord cross-section diameter) — a
-  thicker cord is a longer barrier, so permeation *decreases* as `d2`
-  increases.
+- Diffusion path length: `L = d2 · (1 − squeeze)` — the compressed cord
+  height. A thicker cord is a longer barrier (permeation *decreases* as
+  `d2` increases), and squeezing the same cord harder thins that barrier
+  (permeation *increases* with squeeze).
 - Permeation area: `A = π · d1 · width`, where `width` is the effective
-  contact width of the exposed sealing band (set by the groove/squeeze
+  contact width of the exposed sealing band (set by the groove/contact
   geometry) — *independent* of `d2`, so permeation *increases* as `width`
   increases.
 
 So the geometry factor is:
 
 ```
-A / L = π · d1 · width / d2
+A / L = π · d1 · width / (d2 · (1 − squeeze))
 ```
+
+Note that "more squeeze increases permeation" is not in conflict with
+squeeze improving a seal: squeeze closes real leak paths (bypass leakage)
+while simultaneously thinning the diffusion barrier that permeation must
+cross. They are two different transport mechanisms.
 
 This keeps `width` decoupled from `d2` on purpose: for a real, standard
 permeability coefficient (Barrer, SI, ...) — defined via flat-membrane
 testing as `Flux = P · Area / Thickness` — `Area / Thickness` must have
-units of length. If `width` were instead set equal to `d2` (as in a naive
+units of length. If `width` were instead tied to `d2` (as in a naive
 "unrolled torus band" with matching width and thickness), `d2` would
 cancel out of the ratio entirely and the result would become independent
-of cord diameter, contradicting the well-established engineering result
-that a thicker cross-section improves permeation resistance. Decoupling
-`width` from `d2` is what lets both dimensions matter independently while
-keeping the permeability units dimensionally valid. `width` defaults to
-`d2` in the UI as a starting point — adjust it if you know the actual
-compressed contact width for your groove design.
+of cord diameter. Decoupling `width` from `d2` is what lets both
+dimensions matter independently while keeping the permeability units
+dimensionally valid.
+
+**Do not set `width` equal to `d2`.** Doing so re-introduces exactly that
+cancellation and the model stops responding to cord diameter. `width` is
+the contact-band depth from your groove design; `d2` and `squeeze` set
+the barrier thickness. They answer different questions:
+
+- *"I changed to a thinner cord in the same gland"* → lower `d2`, and
+  raise `squeeze` (a thinner cord in a fixed groove is compressed less,
+  so in practice you would lower it — check your actual gland depth).
+- *"I scaled the whole seal geometrically"* → if you scale `width` and
+  `d2` together at constant squeeze, permeation is genuinely unchanged.
+  That is a real physical result, not a modelling artefact: geometrically
+  similar seals at the same squeeze have the same permeation resistance.
 
 ### Permeation flux (multiple O-rings, in parallel)
 
 Steady-state Fickian permeation through O-ring `i`:
 
 ```
-Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · width_i / d2_i · (P_compartment − P_external)
+Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · width_i / (d2_i · (1 − squeeze_i)) · (P_compartment − P_external)
 ```
 
 where `P_i` is that O-ring's permeability coefficient (SI: `mol/(m·s·Pa)`).
@@ -107,7 +123,7 @@ Every O-ring vents the same compartment to the same external environment,
 so their molar flows simply add:
 
 ```
-Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · width_i / d2_i)
+Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · width_i / (d2_i · (1 − squeeze_i)))
 ```
 
 ### Pressure decay over time

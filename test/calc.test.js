@@ -17,6 +17,7 @@ function oring(overrides = {}) {
     d1: 50, d1Unit: "mm",
     d2: 3, d2Unit: "mm",
     width: 3, widthUnit: "mm",
+    squeezePct: 0,
     permeability: 15, permeabilityUnit: "barrer",
     ...overrides,
   };
@@ -225,6 +226,62 @@ test("a second, very low-permeability O-ring barely changes the result", () => {
     orings: [oring(), oring({ permeability: 1e-6, permeabilityUnit: "barrer" })],
   });
   assert.ok(Math.abs(withTiny.tLockoutSeconds - one.tLockoutSeconds) / one.tLockoutSeconds < 1e-4);
+});
+
+test("squeeze thins the diffusion path: more squeeze means more permeation", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const loose = computePermeation({ ...base, orings: [oring({ squeezePct: 0 })] });
+  const tight = computePermeation({ ...base, orings: [oring({ squeezePct: 50 })] });
+
+  assert.ok(tight.tLockoutSeconds < loose.tLockoutSeconds);
+  // 50% squeeze halves the path, so K exactly doubles.
+  assert.ok(Math.abs(tight.si.K_total - 2 * loose.si.K_total) / loose.si.K_total < 1e-9);
+  // And the reported effective path is d2*(1-squeeze).
+  assert.ok(Math.abs(tight.orings[0].pathLength - 0.003 * 0.5) < 1e-12);
+});
+
+test("shrinking d2 alone still shortens the path and speeds up permeation, at any squeeze", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  for (const squeezePct of [0, 20, 40]) {
+    const thick = computePermeation({ ...base, orings: [oring({ d2: 6, squeezePct })] });
+    const thin = computePermeation({ ...base, orings: [oring({ d2: 2, squeezePct })] });
+    assert.ok(
+      thin.tLockoutSeconds < thick.tLockoutSeconds,
+      `thinner cord should permeate faster at ${squeezePct}% squeeze`
+    );
+    // K ∝ 1/d2 with squeeze and width held fixed.
+    assert.ok(Math.abs(thin.si.K_total - 3 * thick.si.K_total) / thick.si.K_total < 1e-9);
+  }
+});
+
+test("squeeze must be within [0, 100)", () => {
+  const base = {
+    volume: 1, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 100, p0Unit: "bar",
+    pLock: 50, pLockUnit: "bar",
+    pExt: 0, pExtUnit: "bar",
+  };
+  assert.throws(
+    () => computePermeation({ ...base, orings: [oring({ squeezePct: 100 })] }),
+    /squeeze/i
+  );
+  assert.throws(
+    () => computePermeation({ ...base, orings: [oring({ squeezePct: -5 })] }),
+    /squeeze/i
+  );
 });
 
 test("secondsTo converts across duration units", () => {

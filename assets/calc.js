@@ -2,16 +2,17 @@
 //
 // Model summary (see README.md for full derivation):
 //   - Each O-ring seals along a band around its torus: gas diffuses
-//     radially through the cord, so the diffusion path length is
-//     L = d2 (the cross-section/cord diameter) — a thicker cord is a
-//     longer barrier, and permeation drops as d2 increases. The exposed
-//     area that band diffuses through is A = pi * d1 * width, where
-//     "width" is the effective contact width of that exposed band —
+//     radially through the cord, so the diffusion path length is the
+//     *compressed* cord height L = d2 * (1 - squeeze). A thicker cord is
+//     a longer barrier (permeation drops as d2 rises); squeezing the same
+//     cord harder thins that barrier (permeation rises with squeeze).
+//     The exposed area that band diffuses through is A = pi * d1 * width,
+//     where "width" is the effective contact width of that exposed band —
 //     independent of d2, since it's set by the groove/contact geometry,
 //     not by the cord's own thickness. This keeps a real, standard
 //     permeability coefficient (Barrer, SI, ...) dimensionally valid:
-//     the geometry factor k = A / L = pi * d1 * width / d2 has units of
-//     length, as required by Q = P_SI * k * deltaP.
+//     the geometry factor k = A / L has units of length, as required by
+//     Q = P_SI * k * deltaP.
 //   - Steady-state Fickian permeation: molar flow Q_i = P_SI_i * k_i * deltaP
 //     for each O-ring i. A compartment may be sealed by more than one
 //     O-ring (e.g. redundant seals, different ports) — since they all vent
@@ -148,16 +149,33 @@ export function convert(value, unit, table) {
 
 /**
  * Convert one O-ring's raw form inputs into SI values plus its geometry
- * factor and permeation contribution K_i = P_SI_i * pi * d1_i * width_i / d2_i.
+ * factor and permeation contribution
+ * K_i = P_SI_i * pi * d1_i * width_i / (d2_i * (1 - squeeze_i)).
+ *
+ * The installed O-ring is squeezed in its gland, so the barrier the gas
+ * actually crosses is not the free cord diameter but the *compressed*
+ * cord height:
+ *
+ *   L_eff = d2 * (1 - squeeze)
+ *
+ * That gives both behaviours the model needs: a thinner cord shortens the
+ * path (more permeation), and squeezing the same cord harder also shortens
+ * it (more permeation). Note that higher squeeze improving *sealing* and
+ * higher squeeze increasing *permeation* are not in conflict — squeeze
+ * closes real leak paths while simultaneously thinning the diffusion
+ * barrier.
  *
  * @param {object} r
  * @param {number} r.d1 inner diameter (ID) of the O-ring
  * @param {string} r.d1Unit
- * @param {number} r.d2 cross-section (cord) diameter of the O-ring —
- *   the diffusion path length; thicker cord means less permeation
+ * @param {number} r.d2 cross-section (cord) diameter of the O-ring, free
+ *   (uninstalled). Combined with squeeze this sets the diffusion path.
  * @param {string} r.d2Unit
+ * @param {number} r.squeezePct squeeze / compression, in percent of d2
+ *   (typical installed O-rings: 15-30%). 0 means uncompressed.
  * @param {number} r.width effective contact width of the O-ring's exposed
- *   sealing band — independent of d2; wider band means more permeation
+ *   sealing band — the depth of the permeation area, independent of d2;
+ *   wider band means more permeation
  * @param {string} r.widthUnit
  * @param {number} r.permeability permeability coefficient value, at the
  *   compartment's operating temperature, for this O-ring's elastomer/gas pair
@@ -167,17 +185,23 @@ export function computeOringSI(r) {
   const d1 = convert(r.d1, r.d1Unit, LENGTH_UNITS);
   const d2 = convert(r.d2, r.d2Unit, LENGTH_UNITS);
   const width = convert(r.width, r.widthUnit, LENGTH_UNITS);
+  const squeezePct = r.squeezePct ?? 0;
   const P_SI = convert(r.permeability, r.permeabilityUnit, PERMEABILITY_UNITS);
 
   if (d1 <= 0 || d2 <= 0 || width <= 0) {
     throw new Error("O-ring dimensions must be positive.");
   }
+  if (!(squeezePct >= 0) || squeezePct >= 100) {
+    throw new Error("Squeeze must be at least 0% and less than 100%.");
+  }
   if (P_SI <= 0) throw new Error("Permeability coefficient must be positive.");
 
-  const geometryFactor = (Math.PI * d1 * width) / d2; // = A/L, A = pi*d1*width, L = d2
+  const squeeze = squeezePct / 100;
+  const pathLength = d2 * (1 - squeeze); // compressed cord height
+  const geometryFactor = (Math.PI * d1 * width) / pathLength; // = A/L
   const K = P_SI * geometryFactor; // mol/(s*Pa) per unit deltaP
 
-  return { d1, d2, width, P_SI, geometryFactor, K };
+  return { d1, d2, width, squeezePct, pathLength, P_SI, geometryFactor, K };
 }
 
 /**
