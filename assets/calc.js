@@ -3,12 +3,12 @@
 // Model summary (see README.md for full derivation):
 //   - Squeezing the cord deforms its circular cross-section into an
 //     equal-area ellipse. Squashing a free cord of diameter d2 down to an
-//     installed height h (the gland depth) gives a minor axis of h and a
+//     installed height h (the groove depth) gives a minor axis of h and a
 //     major axis of d2^2 / h. Gas crosses the seal along the major axis,
 //     so that is the diffusion path L, and the flank height it enters
 //     through is w = h in auto mode.
 //     Which of h and the squeeze RATIO you hold fixed decides whether cord
-//     diameter matters at all: at a fixed gland depth the path grows as
+//     diameter matters at all: at a fixed groove depth the path grows as
 //     d2^2/h so a fatter cord permeates far less, while at a fixed squeeze
 //     percentage the whole cross-section scales with d2 and 2D diffusion
 //     is scale-invariant, so d2 very nearly cancels. See README.md.
@@ -159,7 +159,7 @@ export function convert(value, unit, table) {
  * factor and permeation contribution
  * K_i = P_SI_i * pi * d1_i * w_i / (d2_i * (1 - squeeze_i)).
  *
- * The installed O-ring is squeezed in its gland. Rubber is essentially
+ * The installed O-ring is squeezed in its groove. Rubber is essentially
  * incompressible, so the circular cross-section does not just get thinner
  * — it deforms into an ellipse of the same area, bulging out sideways.
  * With squeeze c, the minor axis (squeeze direction) is d2*(1-c), so
@@ -208,7 +208,7 @@ export function ellipsePerimeter(a, b) {
 export function computeOringSI(r) {
   const d1 = convert(r.d1, r.d1Unit, LENGTH_UNITS);
   const d2 = convert(r.d2, r.d2Unit, LENGTH_UNITS);
-  const compressionMode = r.compressionMode === "squeeze" ? "squeeze" : "gland";
+  const compressionMode = r.compressionMode === "squeeze" ? "squeeze" : "groove";
   const widthMode = r.widthMode === "auto" ? "auto" : "manual";
   const P_SI = convert(r.permeability, r.permeabilityUnit, PERMEABILITY_UNITS);
 
@@ -218,42 +218,42 @@ export function computeOringSI(r) {
   if (P_SI <= 0) throw new Error("Permeability coefficient must be positive.");
 
   // How hard the cord is compressed can be given either way round. The
-  // gland depth is the physically fixed one: a groove does not change
+  // groove depth is the physically fixed one: a groove does not change
   // depth when you fit a different cord in it, so that is the input that
   // lets cord diameter actually matter (see below).
-  let glandDepth; // installed cord height = ellipse minor axis
+  let grooveDepth; // installed cord height = ellipse minor axis
   let squeeze;
-  if (compressionMode === "gland") {
-    glandDepth = convert(r.glandDepth, r.glandDepthUnit, LENGTH_UNITS);
-    if (!(glandDepth > 0)) throw new Error("Gland depth must be positive.");
-    if (glandDepth > d2) {
-      throw new Error("Gland depth cannot exceed the free cord diameter d2.");
+  if (compressionMode === "groove") {
+    grooveDepth = convert(r.grooveDepth, r.grooveDepthUnit, LENGTH_UNITS);
+    if (!(grooveDepth > 0)) throw new Error("Groove depth must be positive.");
+    if (grooveDepth > d2) {
+      throw new Error("Groove depth cannot exceed the free cord diameter d2.");
     }
-    squeeze = 1 - glandDepth / d2;
+    squeeze = 1 - grooveDepth / d2;
   } else {
     const squeezePct = r.squeezePct ?? 0;
     if (!(squeezePct >= 0) || squeezePct >= 100) {
       throw new Error("Squeeze must be at least 0% and less than 100%.");
     }
     squeeze = squeezePct / 100;
-    glandDepth = d2 * (1 - squeeze);
+    grooveDepth = d2 * (1 - squeeze);
   }
 
   // Incompressible ellipse: area is conserved, so squeezing the round cord
-  // down to a height of `glandDepth` bulges it sideways to a major axis of
-  // d2^2 / glandDepth. Gas crosses the seal along that major axis, so this
+  // down to a height of `grooveDepth` bulges it sideways to a major axis of
+  // d2^2 / grooveDepth. Gas crosses the seal along that major axis, so this
   // is the diffusion path length.
-  const pathLength = d2 / (1 - squeeze); // === d2*d2 / glandDepth
+  const pathLength = d2 / (1 - squeeze); // === d2*d2 / grooveDepth
   const semiMajor = pathLength / 2;
-  const semiMinor = glandDepth / 2;
+  const semiMinor = grooveDepth / 2;
 
   // The face gas enters through is the flank of the installed cord. Its
   // height perpendicular to the gas path is the compressed height, i.e.
-  // the gland depth. (Using the flank's *arc length* instead overstates it
+  // the groove depth. (Using the flank's *arc length* instead overstates it
   // and degenerates badly once the ellipse elongates: at high squeeze the
   // half-perimeter tends to the major axis itself, so w/L -> 1 and the
   // model stops responding to squeeze at all.)
-  const autoWidth = glandDepth;
+  const autoWidth = grooveDepth;
 
   const width =
     widthMode === "auto" ? autoWidth : convert(r.width, r.widthUnit, LENGTH_UNITS);
@@ -272,7 +272,7 @@ export function computeOringSI(r) {
 
   return {
     d1, d2, width, widthMode, autoWidth,
-    compressionMode, glandDepth, squeeze, squeezePct: squeeze * 100,
+    compressionMode, grooveDepth, squeeze, squeezePct: squeeze * 100,
     pathLength, semiMajor, semiMinor, r1, r2,
     P_SI, geometryFactor, K,
   };

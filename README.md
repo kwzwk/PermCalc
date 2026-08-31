@@ -46,17 +46,17 @@ sync.
   - **Dimensions**: `d1` (inner diameter / ID, as shown in a standard
     O-ring schema), `d2` (free cross-section / cord diameter),
     **compression**, and **exposed face height (`w`)**.
-  - **Compression** can be given either as a **gland depth** (the
+  - **Compression** can be given either as a **groove depth** (the
     installed height of the cord — how deep the groove squashes it) or as
     a **squeeze percentage** of `d2`. They describe the same geometry, but
     they pin different things when you change the cord: see "Which one to
-    hold fixed" below. Gland depth is the default because it is the
+    hold fixed" below. Groove depth is the default because it is the
     physically fixed quantity — a machined groove does not change depth
     when you fit a different cord in it.
   - **Exposed face height (`w`)** — the height of the rubber flank gas
     enters through, measured *along the squeeze axis*, at right angles to
     the gas path. **Auto** sets it to the installed cord height (i.e. the
-    gland depth), which is its projected height across the gas path.
+    groove depth), which is its projected height across the gas path.
     **Manual** takes it as an independent input — use it when part of the
     flank is shielded (backup ring, dovetail groove).
   - **Permeation coefficient** of the gas through *that* O-ring's
@@ -80,7 +80,7 @@ from the high-pressure side to the low-pressure side.
 Rubber is essentially incompressible, so squeezing does not thin the cord
 — it deforms the circular cross-section into an **equal-area ellipse**
 that bulges sideways. Squashing a cord of free diameter `d2` down to an
-installed height `h` (the gland depth) conserves the area `π/4·d2²`, so:
+installed height `h` (the groove depth) conserves the area `π/4·d2²`, so:
 
 ```
 minor axis (across the squeeze) = h
@@ -112,12 +112,12 @@ which reduces to the familiar planar `π · D_mean · w / L` for a thin cord
 correct when the installed cord is not thin relative to the bore. It has
 units of length, as `Q = P · (A/L) · ΔP` requires.
 
-### Which one to hold fixed: gland depth or squeeze %
+### Which one to hold fixed: groove depth or squeeze %
 
 This is the single most important modelling choice in the tool, because
 it decides whether cord diameter affects the answer at all.
 
-- **Fixed gland depth `h`** (the default, and the realistic comparison).
+- **Fixed groove depth `h`** (the default, and the realistic comparison).
   A machined groove has a fixed depth, so fitting a fatter cord squeezes
   it more and bulges it further sideways. The path length grows as
   `L = d2²/h` while `w = h` stays put, so permeation falls roughly as
@@ -133,7 +133,7 @@ it decides whether cord diameter affects the answer at all.
   remains comes only from the annulus curvature (a fatter cord reaches a
   larger outer radius), and it goes the *other* way: 16.5 → 14.9 years
   from a 3 mm to an 8 mm cord. That near-cancellation is a real result,
-  not a bug, but it answers a question about a rescaled gland rather than
+  not a bug, but it answers a question about a rescaled groove rather than
   a fixed one.
 
 Scaling the **whole seal** — `d1`, `d2` and `w` all by `k` — is likewise

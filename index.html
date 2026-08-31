@@ -105,7 +105,7 @@
           </div>
           <div class="field">
             <label>d2 — cross-section (cord) diameter
-              <span class="tip" title="The free (uninstalled) cord diameter. In a fixed gland a thicker cord is squeezed more and bulges further sideways, so the diffusion path grows as d2² / gland depth — a fatter cord permeates markedly less.">?</span>
+              <span class="tip" title="The free (uninstalled) cord diameter. In a fixed groove a thicker cord is squeezed more and bulges further sideways, so the diffusion path grows as d2² / groove depth — a fatter cord permeates markedly less.">?</span>
             </label>
             <div class="value-unit">
               <input type="number" class="oring-d2" step="any" min="0" value="3" />
@@ -119,16 +119,16 @@
           </div>
           <div class="field wide">
             <label>Compression
-              <span class="tip" title="How hard the cord is compressed. Gland depth is the physically fixed quantity — a machined groove does not change depth when you fit a different cord in it — so use it when comparing cord diameters. Squeeze-% mode holds the RATIO fixed instead, which scales the whole cross-section with d2.">?</span>
+              <span class="tip" title="How hard the cord is compressed. Groove depth is the physically fixed quantity — a machined groove does not change depth when you fit a different cord in it — so use it when comparing cord diameters. Squeeze-% mode holds the RATIO fixed instead, which scales the whole cross-section with d2.">?</span>
             </label>
             <div class="value-unit two-select">
               <select class="oring-compressionMode">
-                <option value="gland" selected>gland depth (installed height)</option>
+                <option value="groove" selected>groove depth (installed height)</option>
                 <option value="squeeze">squeeze (% of d2)</option>
               </select>
-              <div class="value-unit oring-gland-wrap">
-                <input type="number" class="oring-glandDepth" step="any" min="0" value="2.4" />
-                <select class="oring-glandDepthUnit">
+              <div class="value-unit oring-groove-wrap">
+                <input type="number" class="oring-grooveDepth" step="any" min="0" value="2.4" />
+                <select class="oring-grooveDepthUnit">
                   <option value="mm" selected>mm</option>
                   <option value="cm">cm</option>
                   <option value="m">m</option>
@@ -162,10 +162,10 @@
             </div>
           </div>
           <p class="hint oring-auto-note">
-            Auto sets w to the installed cord height (the gland depth) — the flank
+            Auto sets w to the installed cord height (the groove depth) — the flank
             height gas enters through, measured across the gas path. Use manual only
             if part of the flank is shielded (backup ring, dovetail groove).
-            <strong>Cord diameter only changes the answer at a fixed gland depth</strong>:
+            <strong>Cord diameter only changes the answer at a fixed groove depth</strong>:
             hold squeeze&nbsp;% fixed instead and you scale the whole cross-section
             with d2, which is very nearly a no-op.
           </p>
@@ -323,7 +323,7 @@
       at right angles to the flow.
     </p>
     <figure>
-  <svg viewBox="0 0 780 370" role="img" aria-label="Cross-section of a squeezed O-ring in a gland. The cord is compressed vertically into an ellipse. Gas flows horizontally from the high-pressure side, through the ellipse's long axis, to the low-pressure side. The exposed face height w is the vertical height of the entry face.">
+  <svg viewBox="0 0 780 370" role="img" aria-label="Cross-section of a squeezed O-ring in a groove. The cord is compressed vertically into an ellipse. Gas flows horizontally from the high-pressure side, through the ellipse's long axis, to the low-pressure side. The exposed face height w is the vertical height of the entry face.">
     <defs>
       <marker id="pc-flowA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
         <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--warn)"/>
@@ -462,7 +462,7 @@
     <p class="hint">
       In "auto" mode w is half the ellipse's perimeter — the arc facing the high-pressure
       side. That arc scales with d2 exactly as L does, so auto mode is independent of cord
-      diameter; use manual when comparing cords in a fixed gland.
+      diameter; use manual when comparing cords in a fixed groove.
     </p>
   </details>
 </section>

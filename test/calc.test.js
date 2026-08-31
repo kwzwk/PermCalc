@@ -20,7 +20,7 @@ function oring(overrides = {}) {
     width: 3, widthUnit: "mm",
     compressionMode: "squeeze",
     squeezePct: 0,
-    glandDepth: 2.4, glandDepthUnit: "mm",
+    grooveDepth: 2.4, grooveDepthUnit: "mm",
     permeability: 15, permeabilityUnit: "barrer",
     ...overrides,
   };
@@ -325,7 +325,7 @@ test("ellipsePerimeter reduces to a circle's circumference when a == b", () => {
   assert.ok(Math.abs(ellipsePerimeter(0.004, 0.004) - 2 * Math.PI * 0.004) < 1e-12);
 });
 
-test("auto width is the installed cord height (the gland depth)", () => {
+test("auto width is the installed cord height (the groove depth)", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -340,11 +340,11 @@ test("auto width is the installed cord height (the gland depth)", () => {
 
   // 3 mm cord at 20% squeeze -> installed height 2.4 mm.
   assert.ok(Math.abs(r.width - 0.0024) < 1e-12, `got ${r.width}`);
-  assert.ok(Math.abs(r.glandDepth - 0.0024) < 1e-12);
+  assert.ok(Math.abs(r.grooveDepth - 0.0024) < 1e-12);
   assert.ok(Math.abs(r.width - r.semiMinor * 2) < 1e-15);
 });
 
-test("gland depth and squeeze % are two views of the same geometry", () => {
+test("groove depth and squeeze % are two views of the same geometry", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -356,21 +356,21 @@ test("gland depth and squeeze % are two views of the same geometry", () => {
     ...base,
     orings: [oring({ d2: 3, squeezePct: 20, widthMode: "auto" })],
   });
-  const byGland = computePermeation({
+  const byGroove = computePermeation({
     ...base,
     orings: [oring({
-      d2: 3, compressionMode: "gland", glandDepth: 2.4, glandDepthUnit: "mm",
+      d2: 3, compressionMode: "groove", grooveDepth: 2.4, grooveDepthUnit: "mm",
       widthMode: "auto",
     })],
   });
   assert.ok(
-    Math.abs(byGland.si.K_total - bySqueeze.si.K_total) / bySqueeze.si.K_total < 1e-12,
-    "20% squeeze on a 3 mm cord must equal a 2.4 mm gland depth"
+    Math.abs(byGroove.si.K_total - bySqueeze.si.K_total) / bySqueeze.si.K_total < 1e-12,
+    "20% squeeze on a 3 mm cord must equal a 2.4 mm groove depth"
   );
-  assert.ok(Math.abs(byGland.orings[0].squeezePct - 20) < 1e-9);
+  assert.ok(Math.abs(byGroove.orings[0].squeezePct - 20) < 1e-9);
 });
 
-test("in a FIXED GLAND a fatter cord permeates markedly less (path grows as d2^2/h)", () => {
+test("in a FIXED GROOVE a fatter cord permeates markedly less (path grows as d2^2/h)", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -382,7 +382,7 @@ test("in a FIXED GLAND a fatter cord permeates markedly less (path grows as d2^2
     computePermeation({
       ...base,
       orings: [oring({
-        d2, compressionMode: "gland", glandDepth: 2.4, glandDepthUnit: "mm",
+        d2, compressionMode: "groove", grooveDepth: 2.4, grooveDepthUnit: "mm",
         widthMode: "auto",
       })],
     });
@@ -399,9 +399,9 @@ test("in a FIXED GLAND a fatter cord permeates markedly less (path grows as d2^2
     if (prev) {
       assert.ok(
         r.tLockoutSeconds > prev.t,
-        `a fatter cord in the same gland must last longer: d2=${d2} did not`
+        `a fatter cord in the same groove must last longer: d2=${d2} did not`
       );
-      assert.ok(r.si.K_total < prev.K, `K must fall with d2 at fixed gland: d2=${d2}`);
+      assert.ok(r.si.K_total < prev.K, `K must fall with d2 at fixed groove: d2=${d2}`);
     }
     prev = { t: r.tLockoutSeconds, K: r.si.K_total };
   }

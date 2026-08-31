@@ -113,20 +113,20 @@ function addOring() {
   // answer -- it just changes which quantity is pinned when d2 moves.
   const modeSelect = node.querySelector(".oring-compressionMode");
   const syncCompressionMode = () => {
-    const gland = modeSelect.value === "gland";
-    node.querySelector(".oring-gland-wrap").hidden = !gland;
-    node.querySelector(".oring-squeeze-wrap").hidden = gland;
+    const groove = modeSelect.value === "groove";
+    node.querySelector(".oring-groove-wrap").hidden = !groove;
+    node.querySelector(".oring-squeeze-wrap").hidden = groove;
   };
   modeSelect.addEventListener("change", () => {
     const d2Input = node.querySelector(".oring-d2");
     const d2 = parseFloat(d2Input.value);
     const d2Unit = node.querySelector(".oring-d2Unit").value;
-    const glandInput = node.querySelector(".oring-glandDepth");
-    const glandUnit = node.querySelector(".oring-glandDepthUnit").value;
+    const grooveInput = node.querySelector(".oring-grooveDepth");
+    const grooveUnit = node.querySelector(".oring-grooveDepthUnit").value;
     const squeezeInput = node.querySelector(".oring-squeeze");
     if (Number.isFinite(d2) && d2 > 0) {
       if (modeSelect.value === "squeeze") {
-        const h = parseFloat(glandInput.value) * LENGTH_UNITS[glandUnit];
+        const h = parseFloat(grooveInput.value) * LENGTH_UNITS[grooveUnit];
         const d2m = d2 * LENGTH_UNITS[d2Unit];
         if (Number.isFinite(h) && h > 0 && h <= d2m) {
           squeezeInput.value = round4(100 * (1 - h / d2m));
@@ -134,7 +134,7 @@ function addOring() {
       } else {
         const sq = parseFloat(squeezeInput.value) / 100;
         if (Number.isFinite(sq) && sq >= 0 && sq < 1) {
-          glandInput.value = round4((d2 * LENGTH_UNITS[d2Unit] * (1 - sq)) / LENGTH_UNITS[glandUnit]);
+          grooveInput.value = round4((d2 * LENGTH_UNITS[d2Unit] * (1 - sq)) / LENGTH_UNITS[grooveUnit]);
         }
       }
     }
@@ -183,8 +183,8 @@ function readOrings() {
     widthMode: card.querySelector(".oring-widthMode").value,
     compressionMode: card.querySelector(".oring-compressionMode").value,
     squeezePct: parseFloat(card.querySelector(".oring-squeeze").value),
-    glandDepth: parseFloat(card.querySelector(".oring-glandDepth").value),
-    glandDepthUnit: card.querySelector(".oring-glandDepthUnit").value,
+    grooveDepth: parseFloat(card.querySelector(".oring-grooveDepth").value),
+    grooveDepthUnit: card.querySelector(".oring-grooveDepthUnit").value,
     permeability: parseFloat(card.querySelector(".oring-permeability").value),
     permeabilityUnit: card.querySelector(".oring-permeabilityUnit").value,
   }));
@@ -319,8 +319,8 @@ function renderBreakdown(result) {
       `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.width)} m${r.widthMode === "auto" ? " (auto)" : ""} / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
     ]);
     rows.push([
-      `O-ring ${i + 1}: diffusion path  d2² ÷ gland depth  [ellipse major axis]`,
-      `${fmt(r.d2)}² m ÷ ${fmt(r.glandDepth)} m = ${fmt(r.pathLength)} m`
+      `O-ring ${i + 1}: diffusion path  d2² ÷ groove depth  [ellipse major axis]`,
+      `${fmt(r.d2)}² m ÷ ${fmt(r.grooveDepth)} m = ${fmt(r.pathLength)} m`
         + `   (squeeze ${r.squeezePct.toFixed(1)}%)`,
     ]);
   });
@@ -392,12 +392,12 @@ function renderWorkedCalc(result, params) {
   result.orings.forEach((r, i) => {
     const raw = params.orings[i];
     const sq = r.squeeze;
-    const minor = r.glandDepth;
+    const minor = r.grooveDepth;
     const lines = [
       `${pad("d1 (inner diameter)")}${raw.d1} ${raw.d1Unit} = ${g(r.d1)} m`,
       `${pad("d2 (free cord)")}${raw.d2} ${raw.d2Unit} = ${g(r.d2)} m`,
-      r.compressionMode === "gland"
-        ? `${pad("gland depth h")}${raw.glandDepth} ${raw.glandDepthUnit} = ${g(minor)} m`
+      r.compressionMode === "groove"
+        ? `${pad("groove depth h")}${raw.grooveDepth} ${raw.grooveDepthUnit} = ${g(minor)} m`
             + `   ->  squeeze = 1 − h/d2 = ${g(sq)}`
         : `${pad("squeeze")}${(sq * 100).toFixed(4).replace(/\.?0+$/, "")} %`
             + `   ->  h = d2·(1−sq) = ${g(minor)} m`,
@@ -516,7 +516,7 @@ function recalculate() {
     for (const [key, value] of Object.entries(r)) {
       if (key === "width" && r.widthMode === "auto") continue;
       if (key === "squeezePct" && r.compressionMode !== "squeeze") continue;
-      if (key === "glandDepth" && r.compressionMode !== "gland") continue;
+      if (key === "grooveDepth" && r.compressionMode !== "groove") continue;
       if (typeof value === "number" && !Number.isFinite(value)) {
         showError(`O-ring ${i + 1}: "${key}" is missing or not a number.`);
         return;
