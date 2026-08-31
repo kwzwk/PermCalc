@@ -272,51 +272,82 @@ export function computeOringSI(r) {
 
   // Incompressible ellipse: area is conserved, so squeezing the round cord
   // down to a height of `grooveDepth` bulges it sideways to a major axis of
-  // d2^2 / grooveDepth. Gas crosses the seal along that major axis, so this
-  // is the diffusion path length.
-  const pathLength = d2 / (1 - squeeze); // === d2*d2 / grooveDepth
-  const semiMajor = pathLength / 2;
+  // d2^2 / grooveDepth.
+  const ellipseMajor = (d2 * d2) / grooveDepth; // === d2 / (1 - squeeze)
+  const semiMajor = ellipseMajor / 2;
   const semiMinor = grooveDepth / 2;
 
-  // The face gas enters through is the cord's flank, but its *effective*
-  // height is not simply the installed height: the diffusion field inside the
-  // cross-section spreads, and the flow crowds around the edges of the two
-  // contact bands. Both of the obvious guesses are wrong -- the flank's arc
-  // length overstates it (and degenerates: as the ellipse elongates the
-  // half-perimeter tends to the major axis, so w/L -> 1 and the model stops
-  // responding to squeeze), while the plain installed height understates it by
-  // ~35% at typical squeeze.
+  // Which length to call "the" diffusion path is a bookkeeping choice, not a
+  // physical one -- see shapeFactor below. Both options are offered because
+  // they change what a MANUAL face height means. (The installed height is not
+  // offered: it runs along the squeeze axis, at right angles to the gas, so it
+  // is not a diffusion path in the flow direction at all.)
+  const pathModel = r.pathModel === "ellipse" ? "ellipse" : "cord";
+  const pathLength = pathModel === "ellipse" ? ellipseMajor : d2;
+
+  // What actually sets the permeation rate is the cross-section's conductance
+  // per unit length of seal -- a DIMENSIONLESS 2D shape factor, since steady
+  // diffusion obeys Laplace's equation and is scale-invariant. The model
+  // writes it as w/L, so picking w is really picking the shape factor.
   //
-  // SHAPE_FACTOR_RHO below is the correction, obtained by solving the real 2D
-  // steady-diffusion field numerically (see docs/shape-factor.md): the cord is
-  // modelled as an area-conserving truncated circle squashed between two
-  // impermeable gland faces, with the left flank held at unit concentration
-  // and the right at zero, and the conductance read off as the Dirichlet
-  // energy. Being a 2D shape factor it is dimensionless and depends only on
-  // the squeeze fraction, never on the cord diameter.
-  const autoWidth = shapeFactorRho(squeeze) * grooveDepth;
+  // Neither obvious guess is right: the flank's arc length overstates it by
+  // ~50% (and degenerates -- as the ellipse elongates the half-perimeter tends
+  // to the major axis, so w/L -> 1 and squeeze stops mattering), while the
+  // plain installed height understates it by ~26%. So it is taken from a
+  // numerical solution of the real 2D diffusion field across the cross-section
+  // (see docs/shape-factor.md): an area-conserving truncated circle squashed
+  // between two impermeable groove faces, flanks held at unit and zero
+  // concentration, conductance read off as the Dirichlet energy.
+  const shapeFactor = shapeFactorRho(squeeze) * (1 - squeeze) ** 2;
+
+  // Auto width is whatever reproduces that shape factor for the chosen L, so
+  // the answer comes out the same either way -- as it must, since the physical
+  // conductance cannot depend on which length we nominated as the path.
+  const autoWidth = shapeFactor * pathLength;
 
   const width =
     widthMode === "auto" ? autoWidth : convert(r.width, r.widthUnit, LENGTH_UNITS);
   if (!(width > 0)) throw new Error("O-ring dimensions must be positive.");
 
-  // The seal is an annulus, not a flat slab: gas leaves the inner flank at
-  // radius r1 and reaches the outer flank at r2, spreading as it goes. The
-  // exact steady conductance of a cylindrical shell is 2*pi*w / ln(r2/r1),
-  // which reduces to the familiar A/L = pi*D_mean*w/L for a thin cord but
-  // stays right when the installed cord is not thin. Same units (length),
-  // so it drops straight into K = P_SI * geometryFactor.
-  const r1 = d1 / 2;
-  const r2 = r1 + pathLength;
-  const geometryFactor = (2 * Math.PI * width) / Math.log(r2 / r1); // = A/L
+  const modelFactor = r.modelFactor ?? 1;
+  if (!(modelFactor > 0)) throw new Error("Calibration factor must be positive.");
+
+  // The band that leaks sits at the cord's centroid, so the seal circumference
+  // is taken at the mean diameter d1 + d2, not at the bore.
+  const meanDiameter = d1 + d2;
+  const circumference = Math.PI * meanDiameter;
+  const exposedArea = circumference * width;
+
+  // Conventional screening form: a flat slab of area A and thickness L.
+  const planarGeometryFactor = exposedArea / pathLength;
+
+  // Refinement: the seal is an annulus, so gas fans outward as it crosses.
+  // The exact cylindrical-shell conductance is 2*pi*w/ln(r2/r1), with the
+  // flanks placed symmetrically about the centroid radius. It reduces to the
+  // planar form for a thin cord and stays right for a thick one.
+  const rMean = meanDiameter / 2;
+  const r1 = rMean - pathLength / 2;
+  const r2 = rMean + pathLength / 2;
+  const annularUsable = r1 > 0;
+  const annularGeometryFactor = annularUsable
+    ? (2 * Math.PI * width) / Math.log(r2 / r1)
+    : planarGeometryFactor;
+
+  const geometryModel =
+    r.geometryModel === "annular" && annularUsable ? "annular" : "planar";
+  const baseGeometryFactor =
+    geometryModel === "annular" ? annularGeometryFactor : planarGeometryFactor;
+  const geometryFactor = modelFactor * baseGeometryFactor; // = A/L, units of length
   const K = P_SI * geometryFactor; // mol/(s*Pa) per unit deltaP
 
   return {
     d1, d2, width, widthMode, autoWidth,
     compressionMode, grooveDepth, squeeze, squeezePct: squeeze * 100,
-    shapeRho: shapeFactorRho(squeeze),
-    pathLength, semiMajor, semiMinor, r1, r2,
-    P_SI, geometryFactor, K,
+    shapeRho: shapeFactorRho(squeeze), shapeFactor,
+    pathModel, pathLength, ellipseMajor, semiMajor, semiMinor,
+    meanDiameter, circumference, exposedArea,
+    geometryModel, modelFactor, planarGeometryFactor, annularGeometryFactor,
+    r1, r2, P_SI, geometryFactor, K,
   };
 }
 
@@ -365,7 +396,15 @@ export function computePermeation(p) {
     throw new Error("Initial pressure must be greater than the lockout pressure.");
   }
 
-  const orings = p.orings.map(computeOringSI);
+  // The calculation-model choices are form-level, so fold them into each ring.
+  const orings = p.orings.map((o) =>
+    computeOringSI({
+      ...o,
+      geometryModel: p.geometryModel,
+      pathModel: p.pathModel,
+      modelFactor: p.modelFactor,
+    })
+  );
   const K_total = orings.reduce((sum, r) => sum + r.K, 0); // mol/(s*Pa)
 
   // Time-constant of the exponential pressure decay: dP/dt = -alpha*(P-Pext)

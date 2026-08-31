@@ -86,3 +86,27 @@ To regenerate the table:
 pip install numpy scipy
 python3 tools/shape-factor-solver.py
 ```
+
+## How the shape factor enters the calculator
+
+`S` is the physics; everything else is presentation. Auto width sets
+`w = S · L`, so the two "diffusion path" options (free cord `d2`, or the
+equal-area ellipse major axis `d2²/h`) give **identical** answers — the
+conductance cannot depend on which length was nominated as the path. The path
+choice only changes what a *manual* face height means.
+
+The two geometry options then turn `S` into a conductance:
+
+```
+planar    G = π·(d1 + d2)·w / L            (conventional screening form)
+annular   G = 2π·w / ln(r₂/r₁)             r₁,₂ = (d1 + d2)/2 ∓ L/2
+```
+
+The annular form accounts for the gas fanning outward as it crosses the seal
+and reduces to the planar one for a thin cord. Measured at the defaults
+(d1 = 50 mm, d2 = 3 mm, 20% squeeze) all four combinations agree to 0.17%:
+
+| | L = d2 | L = d2²/h |
+|---|---|---|
+| planar | 0.144307 m | 0.144307 m |
+| annular | 0.144153 m | 0.144066 m |

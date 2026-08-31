@@ -91,38 +91,46 @@ squeeze fraction                 = 1 - h / d2
 Gas crosses the seal along that major axis, so **more squeeze lengthens
 the path and reduces permeation**.
 
-The entry face is the cord's flank, but its *effective* height is not simply
-the installed height — the diffusion field spreads through the bulging middle
-of the section and crowds around the edges of the contact bands. Auto mode
-therefore sets
+What actually sets the rate is the cross-section's **conductance per unit
+length of seal** — a *dimensionless* 2D shape factor, since steady diffusion
+obeys Laplace's equation and is scale-invariant. The model writes it as `w / L`,
+so choosing the face height `w` is really choosing that shape factor.
+
+Neither obvious guess is right. The flank's *arc length* overstates it by ~50%
+and degenerates (as the ellipse elongates the half-perimeter tends to the major
+axis, so `w/L → 1` and squeeze stops mattering); the plain installed height
+understates it by ~26%. So it is taken from a numerical solution of the real 2D
+diffusion field across the cross-section — see
+[docs/shape-factor.md](docs/shape-factor.md) for the geometry, boundary
+conditions, validation and the table:
 
 ```
-w = rho(squeeze) · h
+S = rho(squeeze) · (1 − squeeze)²          S = 0.867 at 20% squeeze
+w = S · L                                  (auto mode)
 ```
 
-where `rho` comes from solving the real 2D diffusion field across the
-cross-section numerically (`rho` ≈ 1.35 at 20% squeeze). Both obvious guesses
-are wrong: the flank's *arc length* overstates permeation by ~50%, and the
-plain installed height understates it by ~26%. See
-[docs/shape-factor.md](docs/shape-factor.md) for the geometry, the boundary
-conditions, the validation and the table.
+Because `S` is dimensionless it depends only on the squeeze fraction, never on
+the cord diameter.
 
-Because `w/L` is a dimensionless 2D shape factor, it depends only on the
-squeeze fraction — never on the cord diameter.
+### Calculation model
 
-The seal is an annulus, not a flat slab: gas leaves the inner flank at
-radius `r₁ = d1/2` and must reach the outer flank at `r₂ = r₁ + L`,
-spreading as it goes. The exact steady conductance of a cylindrical shell
-gives the geometry factor:
+Three form-level settings control how that shape factor becomes a conductance:
 
-```
-A / L  =  2π · w / ln(r₂ / r₁)
-```
-
-which reduces to the familiar planar `π · D_mean · w / L` for a thin cord
-(they agree to 2×10⁻⁵ relative at `d1` = 500 mm, `d2` = 3 mm) but stays
-correct when the installed cord is not thin relative to the bore. It has
-units of length, as `Q = P · (A/L) · ΔP` requires.
+- **Permeation geometry.** *Planar* (default) is the conventional screening
+  form, `G = A/L` with `A = π·(d1 + d2)·w` — the circumference taken at the
+  cord's centroid, not at the bore. *Annular* is a refinement that accounts for
+  the gas fanning outward as it crosses, `G = 2π·w/ln(r₂/r₁)` with the flanks
+  placed symmetrically about the centroid radius. It reduces to the planar form
+  for a thin cord; the two agree to ~0.1% at the defaults.
+- **Diffusion path `L`.** Either the free cord diameter `d2` (default) or the
+  equal-area ellipse major axis `d2²/h`. This is **bookkeeping, not physics**:
+  in auto mode `w` is set from `L` so the answer is identical either way, as it
+  must be. It changes what a *manual* face height means — and note that with a
+  manual `w` and `L = d2`, squeeze no longer influences the result at all, since
+  neither `A` nor `L` depends on it. Pick the ellipse path if you are overriding
+  `w` and want squeeze to keep acting.
+- **Calibration factor.** Multiplies the geometry factor. Leave it at 1 unless
+  you have fitted it to measured pressure-decay data for this seal and gas.
 
 ### Which one to hold fixed: groove depth or squeeze %
 
@@ -159,7 +167,8 @@ fixed squeeze percentage.
 Steady-state Fickian permeation through O-ring `i`:
 
 ```
-Q_i = P_i · (A_i / L_i) · ΔP = P_i · 2π · w_i / ln(r₂_i / r₁_i) · (P_compartment − P_external)
+Q_i = P_i · G_i · ΔP,     G_i = π · (d1_i + d2_i) · w_i / L_i    (planar)
+                          G_i = 2π · w_i / ln(r₂_i / r₁_i)       (annular)
 ```
 
 where `P_i` is that O-ring's permeability coefficient (SI: `mol/(m·s·Pa)`).
@@ -167,7 +176,7 @@ Every O-ring vents the same compartment to the same external environment,
 so their molar flows simply add:
 
 ```
-Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · 2π · w_i / ln(r₂_i / r₁_i))
+Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · G_i)
 ```
 
 ### Pressure decay over time

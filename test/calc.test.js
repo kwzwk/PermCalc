@@ -13,6 +13,12 @@ import {
   secondsTo,
 } from "../assets/calc.js";
 
+// The calculation-model choices are form-level; default them here so each
+// test states which model it is exercising.
+function withModel(base, o = {}) {
+  return { geometryModel: "planar", pathModel: "cord", modelFactor: 1, ...base, ...o };
+}
+
 function oring(overrides = {}) {
   return {
     d1: 50, d1Unit: "mm",
@@ -161,9 +167,10 @@ test("thicker cord (d2 alone, width held fixed) means less permeation and longer
     orings: [oring({ d2: 6, d2Unit: "mm", width: 3, widthUnit: "mm" })],
   });
   assert.ok(thick.tLockoutSeconds > thin.tLockoutSeconds);
-  // Tripling d2 with width and d1 held fixed cuts K by ln(r2/r1) rather than
-  // exactly 3x, because the flux spreads across the annulus as it crosses.
-  const ratio = Math.log((25 + 6) / 25) / Math.log((25 + 2) / 25);
+  // Planar model, L = d2: K = pi*(d1+d2)*w/d2, so tripling d2 from 2 to 6 mm
+  // cuts K by (52/2) / (56/6), not by exactly 3 -- the mean circumference grows
+  // a little as the cord fattens.
+  const ratio = (52 / 2) / (56 / 6);
   assert.ok(
     Math.abs(thin.si.K_total / thick.si.K_total - ratio) < 1e-9,
     `got ${thin.si.K_total / thick.si.K_total}, expected ${ratio}`
@@ -236,27 +243,49 @@ test("a second, very low-permeability O-ring barely changes the result", () => {
   assert.ok(Math.abs(withTiny.tLockoutSeconds - one.tLockoutSeconds) / one.tLockoutSeconds < 1e-4);
 });
 
-test("squeeze bulges the cord into an ellipse, lengthening the path: less permeation", () => {
-  const base = {
+test("more squeeze means a lower shape factor and so less permeation", () => {
+  const base = withModel({
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
     p0: 200, p0Unit: "bar",
     pLock: 100, pLockUnit: "bar",
     pExt: 1, pExtUnit: "bar",
-  };
-  const loose = computePermeation({ ...base, orings: [oring({ squeezePct: 0 })] });
-  const tight = computePermeation({ ...base, orings: [oring({ squeezePct: 50 })] });
+  });
+  const loose = computePermeation({
+    ...base, orings: [oring({ squeezePct: 10, widthMode: "auto" })],
+  });
+  const tight = computePermeation({
+    ...base, orings: [oring({ squeezePct: 40, widthMode: "auto" })],
+  });
 
   assert.ok(tight.tLockoutSeconds > loose.tLockoutSeconds);
-  // 50% squeeze doubles the major axis. In the annular form the conductance
-  // goes as 1/ln(r2/r1), so K drops by ln(1.12)/ln(1.24), not exactly a half.
-  const expectedRatio = Math.log(1.12) / Math.log(1.24);
-  assert.ok(
-    Math.abs(tight.si.K_total / loose.si.K_total - expectedRatio) < 1e-9,
-    `got ${tight.si.K_total / loose.si.K_total}, expected ${expectedRatio}`
-  );
-  // Reported path is the ellipse major axis d2/(1-squeeze).
-  assert.ok(Math.abs(tight.orings[0].pathLength - 0.003 / 0.5) < 1e-12);
+  // K tracks the solved shape factor, which falls from 1.1999 to 0.4646.
+  assert.ok(Math.abs(loose.orings[0].shapeFactor - 1.1999) < 2e-3);
+  assert.ok(Math.abs(tight.orings[0].shapeFactor - 0.4646) < 2e-3);
+
+  // The ellipse major axis is still reported, whichever length L names.
+  assert.ok(Math.abs(tight.orings[0].ellipseMajor - 0.003 / 0.6) < 1e-12);
+});
+
+test("with a MANUAL face height, squeeze only acts through the path model", () => {
+  // Worth pinning: L = d2 does not move with squeeze, so once the user
+  // overrides w there is nothing left for squeeze to influence. Picking the
+  // ellipse path restores it. Auto width is unaffected either way.
+  const base = withModel({
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  });
+  const manual = (squeezePct, pathModel) =>
+    computePermeation({
+      ...base, pathModel,
+      orings: [oring({ squeezePct, widthMode: "manual", width: 2, widthUnit: "mm" })],
+    }).si.K_total;
+
+  assert.equal(manual(10, "cord"), manual(40, "cord"));
+  assert.ok(manual(40, "ellipse") < manual(10, "ellipse"));
 });
 
 test("squeezed cross-section conserves area (incompressible ellipse)", () => {
@@ -270,7 +299,7 @@ test("squeezed cross-section conserves area (incompressible ellipse)", () => {
   const d2 = 0.003; // 3 mm in SI
   for (const squeezePct of [0, 15, 25, 40]) {
     const r = computePermeation({ ...base, orings: [oring({ squeezePct })] }).orings[0];
-    const major = r.pathLength;
+    const major = r.ellipseMajor;
     const minor = d2 * (1 - squeezePct / 100);
     const ellipseArea = Math.PI / 4 * major * minor;
     const circleArea = Math.PI / 4 * d2 * d2;
@@ -322,27 +351,65 @@ test("squeeze must be within [0, 100)", () => {
 
 
 test("auto width reproduces the numerically-solved 2D shape factor", () => {
-  const base = {
+  const base = withModel({
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
     p0: 200, p0Unit: "bar",
     pLock: 100, pLockUnit: "bar",
     pExt: 1, pExtUnit: "bar",
-  };
+  });
   const r = computePermeation({
     ...base,
     orings: [oring({ d2: 3, d2Unit: "mm", squeezePct: 20, widthMode: "auto" })],
   }).orings[0];
 
-  // w = rho * installed height; 3 mm cord at 20% squeeze -> h = 2.4 mm.
+  // 20% squeeze -> rho = 1.3542, S = rho*(1-sq)^2 = 0.86668 (docs/shape-factor.md).
   assert.ok(Math.abs(r.shapeRho - 1.3542) < 1e-9);
-  assert.ok(Math.abs(r.width - 1.3542 * 0.0024) < 1e-12, `got ${r.width}`);
+  assert.ok(Math.abs(r.shapeFactor - 0.86668) < 1e-4, `S = ${r.shapeFactor}`);
+  // w is whatever reproduces S for the chosen L.
+  assert.ok(Math.abs(r.width / r.pathLength - r.shapeFactor) < 1e-12);
+});
 
-  // The whole point: w/L must equal the shape factor the 2D solve produced
-  // for 20% squeeze (S = 0.86668, see docs/shape-factor.md).
-  assert.ok(
-    Math.abs(r.width / r.pathLength - 0.86668) < 1e-4,
-    `w/L = ${r.width / r.pathLength}, expected the solved S = 0.86668`
+test("in auto mode the answer does not depend on which length is called L", () => {
+  // The conductance is a shape factor; naming d2 or the ellipse major axis as
+  // "the path" is bookkeeping. Both must land within the annular correction.
+  const base = withModel({
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 0, pExtUnit: "bar",
+  });
+  const K = (geometryModel, pathModel) =>
+    computePermeation({
+      ...base, geometryModel, pathModel,
+      orings: [oring({ squeezePct: 20, widthMode: "auto" })],
+    }).si.K_total;
+
+  // Planar is exactly path-independent; annular varies only by its own
+  // curvature correction, which is well under 1% for a normal cord.
+  assert.equal(K("planar", "cord"), K("planar", "ellipse"));
+  for (const pm of ["cord", "ellipse"]) {
+    assert.ok(Math.abs(K("annular", pm) / K("planar", pm) - 1) < 0.01,
+      `annular vs planar differ by more than 1% for path=${pm}`);
+  }
+});
+
+test("the calibration factor scales the result and rejects bad values", () => {
+  const base = withModel({
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 0, pExtUnit: "bar",
+  });
+  const one = computePermeation({ ...base, orings: [oring()] });
+  const two = computePermeation({ ...base, modelFactor: 2, orings: [oring()] });
+  assert.ok(Math.abs(two.si.K_total / one.si.K_total - 2) < 1e-12);
+  assert.ok(Math.abs(two.tLockoutSeconds / one.tLockoutSeconds - 0.5) < 1e-12);
+  assert.throws(
+    () => computePermeation({ ...base, modelFactor: 0, orings: [oring()] }),
+    /calibration factor/i
   );
 });
 
@@ -411,8 +478,8 @@ test("in a FIXED GROOVE a fatter cord permeates markedly less (path grows as d2^
     const r = run(d2);
     // The path length is exactly d2^2 / h.
     assert.ok(
-      Math.abs(r.orings[0].pathLength - (d2 * d2) / 2.4 / 1000) < 1e-12,
-      `path length wrong at d2=${d2}`
+      Math.abs(r.orings[0].ellipseMajor - (d2 * d2) / 2.4 / 1000) < 1e-12,
+      `ellipse major axis wrong at d2=${d2}`
     );
     if (prev) {
       assert.ok(
