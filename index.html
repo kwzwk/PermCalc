@@ -105,7 +105,7 @@
           </div>
           <div class="field">
             <label>d2 — cross-section (cord) diameter
-              <span class="tip" title="The diffusion path length gas crosses to escape. Thicker cord = longer path = less permeation.">?</span>
+              <span class="tip" title="The free (uninstalled) cord diameter. In a fixed gland a thicker cord is squeezed more and bulges further sideways, so the diffusion path grows as d2² / gland depth — a fatter cord permeates markedly less.">?</span>
             </label>
             <div class="value-unit">
               <input type="number" class="oring-d2" step="any" min="0" value="3" />
@@ -117,13 +117,28 @@
               </select>
             </div>
           </div>
-          <div class="field">
-            <label>Squeeze / compression
-              <span class="tip" title="How much the cord is compressed in its gland, as a percentage of d2. Typical installed O-rings run 15–30%. Rubber is incompressible, so squeezing deforms the round cord into an equal-area ellipse that bulges sideways: the gas path is the major axis, d2 ÷ (1 − squeeze). More squeeze therefore means a longer path and less permeation.">?</span>
+          <div class="field wide">
+            <label>Compression
+              <span class="tip" title="How hard the cord is compressed. Gland depth is the physically fixed quantity — a machined groove does not change depth when you fit a different cord in it — so use it when comparing cord diameters. Squeeze-% mode holds the RATIO fixed instead, which scales the whole cross-section with d2.">?</span>
             </label>
-            <div class="value-unit">
-              <input type="number" class="oring-squeeze" step="any" min="0" max="99" value="20" />
-              <select disabled><option>%</option></select>
+            <div class="value-unit two-select">
+              <select class="oring-compressionMode">
+                <option value="gland" selected>gland depth (installed height)</option>
+                <option value="squeeze">squeeze (% of d2)</option>
+              </select>
+              <div class="value-unit oring-gland-wrap">
+                <input type="number" class="oring-glandDepth" step="any" min="0" value="2.4" />
+                <select class="oring-glandDepthUnit">
+                  <option value="mm" selected>mm</option>
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                  <option value="in">in</option>
+                </select>
+              </div>
+              <div class="value-unit oring-squeeze-wrap" hidden>
+                <input type="number" class="oring-squeeze" step="any" min="0" max="99" value="20" />
+                <select disabled><option>%</option></select>
+              </div>
             </div>
           </div>
           <div class="field wide">
@@ -132,7 +147,7 @@
             </label>
             <div class="value-unit two-select">
               <select class="oring-widthMode">
-                <option value="auto" selected>½ ellipse perimeter (auto)</option>
+                <option value="auto" selected>= installed height (auto)</option>
                 <option value="manual">enter manually</option>
               </select>
               <div class="value-unit">
@@ -147,12 +162,12 @@
             </div>
           </div>
           <p class="hint oring-auto-note">
-            Auto takes the arc of the squeezed cord facing the high-pressure side.
-            Because that arc scales with d2 exactly as the path does, auto makes the
-            result <strong>independent of d2 at a fixed d1</strong> — switch to manual
-            if you are comparing cord diameters in a fixed gland. Only the cord
-            cancels: A/L is linear in d1, so a seal enlarged ×2 in every dimension
-            has exactly 2× the permeation conductance.
+            Auto sets w to the installed cord height (the gland depth) — the flank
+            height gas enters through, measured across the gas path. Use manual only
+            if part of the flank is shielded (backup ring, dovetail groove).
+            <strong>Cord diameter only changes the answer at a fixed gland depth</strong>:
+            hold squeeze&nbsp;% fixed instead and you scale the whole cross-section
+            with d2, which is very nearly a no-op.
           </p>
           <div class="field wide oring-material-row">
             <label>Reference material

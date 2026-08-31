@@ -45,12 +45,20 @@ sync.
   together. Each O-ring card has its own:
   - **Dimensions**: `d1` (inner diameter / ID, as shown in a standard
     O-ring schema), `d2` (free cross-section / cord diameter),
-    **squeeze / compression** (percent of `d2` the cord is compressed in
-    its gland — typically 15–30% installed), and **exposed face height
-    (`w`)** — the height of the rubber face gas enters through, measured
-    *along the squeeze axis*, at right angles to the gas path. It can be
-    derived automatically (half the squeezed ellipse's perimeter) or
-    entered manually.
+    **compression**, and **exposed face height (`w`)**.
+  - **Compression** can be given either as a **gland depth** (the
+    installed height of the cord — how deep the groove squashes it) or as
+    a **squeeze percentage** of `d2`. They describe the same geometry, but
+    they pin different things when you change the cord: see "Which one to
+    hold fixed" below. Gland depth is the default because it is the
+    physically fixed quantity — a machined groove does not change depth
+    when you fit a different cord in it.
+  - **Exposed face height (`w`)** — the height of the rubber flank gas
+    enters through, measured *along the squeeze axis*, at right angles to
+    the gas path. **Auto** sets it to the installed cord height (i.e. the
+    gland depth), which is its projected height across the gas path.
+    **Manual** takes it as an independent input — use it when part of the
+    flank is shielded (backup ring, dovetail groove).
   - **Permeation coefficient** of the gas through *that* O-ring's
     elastomer, *at the operating temperature above*. Pick a **material and
     temperature** from the built-in reference dropdown to fill this in
@@ -67,73 +75,79 @@ sync.
 ### Geometry (per O-ring)
 
 Gas diffuses radially through the O-ring's *installed* (compressed) cord,
-from the high-pressure side to the low-pressure side:
+from the high-pressure side to the low-pressure side.
 
-- Diffusion path length: `L = d2 / (1 − squeeze)`. Rubber is essentially
-  incompressible, so squeezing does not merely thin the cord — it deforms
-  the circular cross-section into an **equal-area ellipse** that bulges
-  sideways. With minor axis `d2·(1 − squeeze)`, conserving the area
-  `π/4·d2²` forces a major axis of `d2/(1 − squeeze)`. Gas crosses the
-  seal along that major axis (high-pressure face to low-pressure face,
-  perpendicular to the squeeze), so **more squeeze lengthens the path and
-  reduces permeation**. A thicker cord also lengthens it, since `L` stays
-  proportional to `d2`.
-- Permeation area: `A = π · d1 · w`, where `w` is the **exposed face
-  height** — the height of the rubber face the gas enters through,
-  measured along the squeeze axis (at right angles to the gas path).
-  Permeation *increases* as `w` increases.
-
-  `w` has two modes. **Auto** sets it to half the squeezed ellipse's
-  perimeter — the arc facing the high-pressure side — using Ramanujan's
-  approximation. **Manual** takes it as an independent input. The choice
-  matters: in auto mode the ellipse's aspect ratio `b/a = (1 − squeeze)²`
-  depends only on squeeze, so `w` and `L` both scale with `d2` and it
-  cancels exactly — the answer becomes independent of cord diameter.
-  Use manual when comparing cord diameters in a fixed gland.
-
-So the geometry factor is:
+Rubber is essentially incompressible, so squeezing does not thin the cord
+— it deforms the circular cross-section into an **equal-area ellipse**
+that bulges sideways. Squashing a cord of free diameter `d2` down to an
+installed height `h` (the gland depth) conserves the area `π/4·d2²`, so:
 
 ```
-A / L = π · d1 · w · (1 − squeeze) / d2
+minor axis (across the squeeze) = h
+major axis (across the gas path) = d2² / h        <- the diffusion path L
+squeeze fraction                 = 1 - h / d2
 ```
 
-This means squeeze helps on both counts: it closes real bypass leak paths
-*and* lengthens the diffusion path that permeation must cross.
+Gas crosses the seal along that major axis, so **more squeeze lengthens
+the path and reduces permeation**.
 
-This keeps `w` decoupled from `d2` on purpose: for a real, standard
-permeability coefficient (Barrer, SI, ...) — defined via flat-membrane
-testing as `Flux = P · Area / Thickness` — `Area / Thickness` must have
-units of length. If `w` were instead tied to `d2` (as in a naive
-"unrolled torus band" with matching width and thickness), `d2` would
-cancel out of the ratio entirely and the result would become independent
-of cord diameter. Decoupling `w` from `d2` is what lets both
-dimensions matter independently while keeping the permeability units
-dimensionally valid.
+The entry face is the cord's flank. Its height across the gas path is the
+installed height, so `w = h` in auto mode. (Using the flank's *arc length*
+instead — half the ellipse's perimeter — overstates the area and
+degenerates: as the ellipse elongates, the half-perimeter tends to the
+major axis itself, so `w/L → 1` and the model stops responding to squeeze
+at all. The projected height does not have that failure mode.)
 
-**Do not set `w` equal to `d2`.** Doing so re-introduces exactly that
-cancellation and the model stops responding to cord diameter. `w` is
-the exposed face height from your groove design; `d2` and `squeeze` set
-the barrier thickness. They answer different questions:
+The seal is an annulus, not a flat slab: gas leaves the inner flank at
+radius `r₁ = d1/2` and must reach the outer flank at `r₂ = r₁ + L`,
+spreading as it goes. The exact steady conductance of a cylindrical shell
+gives the geometry factor:
 
-- *"I changed to a thinner cord in the same gland"* → lower `d2`, and
-  lower `squeeze` too (a thinner cord in a fixed-depth groove is
-  compressed less) — check your actual gland depth.
-- *"Same bore, fatter cord"* → if you scale `w` and `d2` together at
-  constant squeeze while `d1` stays put, permeation is genuinely
-  unchanged. `w` and `L` grow in step and the ratio `w/L` is fixed by
-  squeeze alone, so the cord diameter cancels exactly.
-- *"Bigger seal all round"* → scaling `d1` as well is **not** neutral.
-  `A/L = π·d1·w·(1 − squeeze)/d2` is linear in `d1`, so a seal scaled up
-  ×2 in every dimension has exactly **2× the permeation conductance** —
-  the circumference grew and nothing offsets it. Only the *cord* cancels,
-  never the seal diameter.
+```
+A / L  =  2π · w / ln(r₂ / r₁)
+```
+
+which reduces to the familiar planar `π · D_mean · w / L` for a thin cord
+(they agree to 2×10⁻⁵ relative at `d1` = 500 mm, `d2` = 3 mm) but stays
+correct when the installed cord is not thin relative to the bore. It has
+units of length, as `Q = P · (A/L) · ΔP` requires.
+
+### Which one to hold fixed: gland depth or squeeze %
+
+This is the single most important modelling choice in the tool, because
+it decides whether cord diameter affects the answer at all.
+
+- **Fixed gland depth `h`** (the default, and the realistic comparison).
+  A machined groove has a fixed depth, so fitting a fatter cord squeezes
+  it more and bulges it further sideways. The path length grows as
+  `L = d2²/h` while `w = h` stays put, so permeation falls roughly as
+  `1/d2²`. Going from a 3 mm to a 6 mm cord in the same 2.4 mm groove
+  takes the example service life from **16.5 to 55.4 years**. This is the
+  comparison an engineer almost always means by "what if I use a thicker
+  cord?"
+- **Fixed squeeze percentage.** Holding the *ratio* `h/d2` fixed scales
+  the entire cross-section with `d2`. Steady 2D diffusion is
+  scale-invariant — a uniformly scaled cross-section has the same
+  conductance per unit of seal length, since the shape factor is
+  dimensionless — so `d2` very nearly cancels out. What little dependence
+  remains comes only from the annulus curvature (a fatter cord reaches a
+  larger outer radius), and it goes the *other* way: 16.5 → 14.9 years
+  from a 3 mm to an 8 mm cord. That near-cancellation is a real result,
+  not a bug, but it answers a question about a rescaled gland rather than
+  a fixed one.
+
+Scaling the **whole seal** — `d1`, `d2` and `w` all by `k` — is likewise
+not neutral: the radii ratio `r₂/r₁` is unchanged while `w` grows, so `K`
+is exactly linear in `k`. A seal scaled ×2 in every dimension has exactly
+**2× the permeation conductance**. Only the *cord* cancels, and only at a
+fixed squeeze percentage.
 
 ### Permeation flux (multiple O-rings, in parallel)
 
 Steady-state Fickian permeation through O-ring `i`:
 
 ```
-Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · w_i · (1 − squeeze_i) / d2_i · (P_compartment − P_external)
+Q_i = P_i · (A_i / L_i) · ΔP = P_i · 2π · w_i / ln(r₂_i / r₁_i) · (P_compartment − P_external)
 ```
 
 where `P_i` is that O-ring's permeability coefficient (SI: `mol/(m·s·Pa)`).
@@ -141,7 +155,7 @@ Every O-ring vents the same compartment to the same external environment,
 so their molar flows simply add:
 
 ```
-Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · w_i · (1 − squeeze_i) / d2_i)
+Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · 2π · w_i / ln(r₂_i / r₁_i))
 ```
 
 ### Pressure decay over time
@@ -196,9 +210,11 @@ value to Barrer or SI first rather than using the NTP option directly.
 - Permeability is assumed constant with pressure and independent of time
   (no swelling, plasticization, or aging effects).
 - The O-ring's exposed permeation geometry is approximated as described
-  above (linear diffusion across the cord, uniform exposed face); it does
-  not model the true 2D diffusion shape within the cross-section or
-  squeeze-dependent contact patch geometry in detail.
+  above (radial diffusion across the cord, uniform exposed flank); it does
+  not solve the true 2D diffusion field within the cross-section. A real
+  cord in a groove is also laterally constrained and forms a barrel rather
+  than a clean ellipse, so the equal-area ellipse is itself an
+  idealisation of the installed shape.
 - The compartment gas is treated as ideal; for very high pressures a
   real-gas compressibility correction would improve accuracy.
 - Any other leak paths (fittings, other seals, diffusion through solid

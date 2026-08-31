@@ -1,19 +1,24 @@
 // PermCalc — gas loss through O-ring permeation
 //
 // Model summary (see README.md for full derivation):
-//   - Each O-ring seals along a band around its torus. Squeezing the cord
-//     deforms its circular cross-section into an equal-area ellipse, and
-//     gas crosses the seal along that ellipse's major axis, so the
-//     diffusion path is L = d2 / (1 - squeeze). A thicker cord is a longer
-//     barrier (permeation drops as d2 rises); squeezing harder makes the
-//     cord bulge wider, lengthening the path (permeation drops with
-//     squeeze too).
-//     The exposed area that band diffuses through is A = pi * d1 * w,
-//     where "w" is the exposed face height: the height of the face gas
-//     enters through, measured along the squeeze axis. It is either
-//     derived from the ellipse (half its perimeter) or given directly. This keeps a real, standard
-//     permeability coefficient (Barrer, SI, ...) dimensionally valid:
-//     the geometry factor k = A / L has units of length, as required by
+//   - Squeezing the cord deforms its circular cross-section into an
+//     equal-area ellipse. Squashing a free cord of diameter d2 down to an
+//     installed height h (the gland depth) gives a minor axis of h and a
+//     major axis of d2^2 / h. Gas crosses the seal along the major axis,
+//     so that is the diffusion path L, and the flank height it enters
+//     through is w = h in auto mode.
+//     Which of h and the squeeze RATIO you hold fixed decides whether cord
+//     diameter matters at all: at a fixed gland depth the path grows as
+//     d2^2/h so a fatter cord permeates far less, while at a fixed squeeze
+//     percentage the whole cross-section scales with d2 and 2D diffusion
+//     is scale-invariant, so d2 very nearly cancels. See README.md.
+//   - The seal is an annulus: gas leaves the inner flank at r1 = d1/2 and
+//     reaches the outer flank at r2 = r1 + L, spreading as it goes, so the
+//     geometry factor is the cylindrical-shell conductance
+//       k = A / L = 2*pi*w / ln(r2/r1)
+//     which reduces to the planar pi*D_mean*w/L for a thin cord. It has
+//     units of length, which is what keeps a real, standard permeability
+//     coefficient (Barrer, SI, ...) dimensionally valid in
 //     Q = P_SI * k * deltaP.
 //   - Steady-state Fickian permeation: molar flow Q_i = P_SI_i * k_i * deltaP
 //     for each O-ring i. A compartment may be sealed by more than one
@@ -203,39 +208,73 @@ export function ellipsePerimeter(a, b) {
 export function computeOringSI(r) {
   const d1 = convert(r.d1, r.d1Unit, LENGTH_UNITS);
   const d2 = convert(r.d2, r.d2Unit, LENGTH_UNITS);
-  const squeezePct = r.squeezePct ?? 0;
+  const compressionMode = r.compressionMode === "squeeze" ? "squeeze" : "gland";
   const widthMode = r.widthMode === "auto" ? "auto" : "manual";
   const P_SI = convert(r.permeability, r.permeabilityUnit, PERMEABILITY_UNITS);
 
   if (d1 <= 0 || d2 <= 0) {
     throw new Error("O-ring dimensions must be positive.");
   }
-  if (!(squeezePct >= 0) || squeezePct >= 100) {
-    throw new Error("Squeeze must be at least 0% and less than 100%.");
-  }
   if (P_SI <= 0) throw new Error("Permeability coefficient must be positive.");
 
-  const squeeze = squeezePct / 100;
-  // Incompressible ellipse: area conserved, so minor = d2*(1-squeeze)
-  // and major = d2/(1-squeeze). Gas crosses along the major axis.
-  const pathLength = d2 / (1 - squeeze);
-  const semiMajor = pathLength / 2;
-  const semiMinor = (d2 * (1 - squeeze)) / 2;
+  // How hard the cord is compressed can be given either way round. The
+  // gland depth is the physically fixed one: a groove does not change
+  // depth when you fit a different cord in it, so that is the input that
+  // lets cord diameter actually matter (see below).
+  let glandDepth; // installed cord height = ellipse minor axis
+  let squeeze;
+  if (compressionMode === "gland") {
+    glandDepth = convert(r.glandDepth, r.glandDepthUnit, LENGTH_UNITS);
+    if (!(glandDepth > 0)) throw new Error("Gland depth must be positive.");
+    if (glandDepth > d2) {
+      throw new Error("Gland depth cannot exceed the free cord diameter d2.");
+    }
+    squeeze = 1 - glandDepth / d2;
+  } else {
+    const squeezePct = r.squeezePct ?? 0;
+    if (!(squeezePct >= 0) || squeezePct >= 100) {
+      throw new Error("Squeeze must be at least 0% and less than 100%.");
+    }
+    squeeze = squeezePct / 100;
+    glandDepth = d2 * (1 - squeeze);
+  }
 
-  // Half the ellipse's perimeter: the arc facing the high-pressure side,
-  // which is the surface gas actually enters through.
-  const autoWidth = ellipsePerimeter(semiMajor, semiMinor) / 2;
+  // Incompressible ellipse: area is conserved, so squeezing the round cord
+  // down to a height of `glandDepth` bulges it sideways to a major axis of
+  // d2^2 / glandDepth. Gas crosses the seal along that major axis, so this
+  // is the diffusion path length.
+  const pathLength = d2 / (1 - squeeze); // === d2*d2 / glandDepth
+  const semiMajor = pathLength / 2;
+  const semiMinor = glandDepth / 2;
+
+  // The face gas enters through is the flank of the installed cord. Its
+  // height perpendicular to the gas path is the compressed height, i.e.
+  // the gland depth. (Using the flank's *arc length* instead overstates it
+  // and degenerates badly once the ellipse elongates: at high squeeze the
+  // half-perimeter tends to the major axis itself, so w/L -> 1 and the
+  // model stops responding to squeeze at all.)
+  const autoWidth = glandDepth;
 
   const width =
     widthMode === "auto" ? autoWidth : convert(r.width, r.widthUnit, LENGTH_UNITS);
   if (!(width > 0)) throw new Error("O-ring dimensions must be positive.");
 
-  const geometryFactor = (Math.PI * d1 * width) / pathLength; // = A/L
+  // The seal is an annulus, not a flat slab: gas leaves the inner flank at
+  // radius r1 and reaches the outer flank at r2, spreading as it goes. The
+  // exact steady conductance of a cylindrical shell is 2*pi*w / ln(r2/r1),
+  // which reduces to the familiar A/L = pi*D_mean*w/L for a thin cord but
+  // stays right when the installed cord is not thin. Same units (length),
+  // so it drops straight into K = P_SI * geometryFactor.
+  const r1 = d1 / 2;
+  const r2 = r1 + pathLength;
+  const geometryFactor = (2 * Math.PI * width) / Math.log(r2 / r1); // = A/L
   const K = P_SI * geometryFactor; // mol/(s*Pa) per unit deltaP
 
   return {
-    d1, d2, width, widthMode, autoWidth, squeezePct,
-    pathLength, semiMajor, semiMinor, P_SI, geometryFactor, K,
+    d1, d2, width, widthMode, autoWidth,
+    compressionMode, glandDepth, squeeze, squeezePct: squeeze * 100,
+    pathLength, semiMajor, semiMinor, r1, r2,
+    P_SI, geometryFactor, K,
   };
 }
 

@@ -90,6 +90,8 @@ function refreshMaterialOptions(node) {
   populateMaterialTempSelect(node);
 }
 
+const round4 = (x) => Number(x.toFixed(4));
+
 function addOring() {
   const node = oringTemplate.content.firstElementChild.cloneNode(true);
   node.querySelector(".remove-oring").addEventListener("click", () => {
@@ -106,6 +108,40 @@ function addOring() {
     node.querySelector(".oring-permeability").value = material.temperaturesC[tempC];
     node.querySelector(".oring-permeabilityUnit").value = material.unitKey;
   });
+  // Swap which compression field is live. Whichever is hidden carries over
+  // the value implied by the other, so flipping the mode never jumps the
+  // answer -- it just changes which quantity is pinned when d2 moves.
+  const modeSelect = node.querySelector(".oring-compressionMode");
+  const syncCompressionMode = () => {
+    const gland = modeSelect.value === "gland";
+    node.querySelector(".oring-gland-wrap").hidden = !gland;
+    node.querySelector(".oring-squeeze-wrap").hidden = gland;
+  };
+  modeSelect.addEventListener("change", () => {
+    const d2Input = node.querySelector(".oring-d2");
+    const d2 = parseFloat(d2Input.value);
+    const d2Unit = node.querySelector(".oring-d2Unit").value;
+    const glandInput = node.querySelector(".oring-glandDepth");
+    const glandUnit = node.querySelector(".oring-glandDepthUnit").value;
+    const squeezeInput = node.querySelector(".oring-squeeze");
+    if (Number.isFinite(d2) && d2 > 0) {
+      if (modeSelect.value === "squeeze") {
+        const h = parseFloat(glandInput.value) * LENGTH_UNITS[glandUnit];
+        const d2m = d2 * LENGTH_UNITS[d2Unit];
+        if (Number.isFinite(h) && h > 0 && h <= d2m) {
+          squeezeInput.value = round4(100 * (1 - h / d2m));
+        }
+      } else {
+        const sq = parseFloat(squeezeInput.value) / 100;
+        if (Number.isFinite(sq) && sq >= 0 && sq < 1) {
+          glandInput.value = round4((d2 * LENGTH_UNITS[d2Unit] * (1 - sq)) / LENGTH_UNITS[glandUnit]);
+        }
+      }
+    }
+    syncCompressionMode();
+  });
+  syncCompressionMode();
+
   refreshMaterialOptions(node);
 
   oringList.appendChild(node);
@@ -145,7 +181,10 @@ function readOrings() {
     width: parseFloat(card.querySelector(".oring-width").value),
     widthUnit: card.querySelector(".oring-widthUnit").value,
     widthMode: card.querySelector(".oring-widthMode").value,
+    compressionMode: card.querySelector(".oring-compressionMode").value,
     squeezePct: parseFloat(card.querySelector(".oring-squeeze").value),
+    glandDepth: parseFloat(card.querySelector(".oring-glandDepth").value),
+    glandDepthUnit: card.querySelector(".oring-glandDepthUnit").value,
     permeability: parseFloat(card.querySelector(".oring-permeability").value),
     permeabilityUnit: card.querySelector(".oring-permeabilityUnit").value,
   }));
@@ -266,7 +305,7 @@ function renderBreakdown(result) {
   const s = result.si;
   const rows = [
     ["Decay time-constant α", `${fmt(s.alpha)} s⁻¹  (1/α = ${fmtDuration(1 / s.alpha)})`],
-    ["Combined geometry×permeability  K_total = Σ(P·π·d1·w·(1−squeeze) / d2)", `${fmt(s.K_total)} mol/(s·Pa)`],
+    ["Combined geometry×permeability  K_total = Σ(P · 2π·w / ln(r₂/r₁))", `${fmt(s.K_total)} mol/(s·Pa)`],
     ["P₀ (SI)", `${fmt(s.P0)} Pa`],
     ["Lockout pressure (SI)", `${fmt(s.Plock)} Pa`],
     ["External pressure (SI)", `${fmt(s.Pext)} Pa`],
@@ -280,8 +319,9 @@ function renderBreakdown(result) {
       `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.width)} m${r.widthMode === "auto" ? " (auto)" : ""} / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
     ]);
     rows.push([
-      `O-ring ${i + 1}: diffusion path  d2 ÷ (1−squeeze)  [ellipse major axis]`,
-      `${fmt(r.d2)} m ÷ (1 − ${r.squeezePct}%) = ${fmt(r.pathLength)} m`,
+      `O-ring ${i + 1}: diffusion path  d2² ÷ gland depth  [ellipse major axis]`,
+      `${fmt(r.d2)}² m ÷ ${fmt(r.glandDepth)} m = ${fmt(r.pathLength)} m`
+        + `   (squeeze ${r.squeezePct.toFixed(1)}%)`,
     ]);
   });
   const table = $("breakdown-table");
@@ -351,26 +391,34 @@ function renderWorkedCalc(result, params) {
   // 2 — per O-ring geometry
   result.orings.forEach((r, i) => {
     const raw = params.orings[i];
-    const sq = r.squeezePct / 100;
-    const minor = r.d2 * (1 - sq);
+    const sq = r.squeeze;
+    const minor = r.glandDepth;
     const lines = [
       `${pad("d1 (inner diameter)")}${raw.d1} ${raw.d1Unit} = ${g(r.d1)} m`,
       `${pad("d2 (free cord)")}${raw.d2} ${raw.d2Unit} = ${g(r.d2)} m`,
-      `${pad("squeeze")}${r.squeezePct} %  ->  1 − squeeze = ${g(1 - sq)}`,
+      r.compressionMode === "gland"
+        ? `${pad("gland depth h")}${raw.glandDepth} ${raw.glandDepthUnit} = ${g(minor)} m`
+            + `   ->  squeeze = 1 − h/d2 = ${g(sq)}`
+        : `${pad("squeeze")}${(sq * 100).toFixed(4).replace(/\.?0+$/, "")} %`
+            + `   ->  h = d2·(1−sq) = ${g(minor)} m`,
       ``,
       `squeezed cross-section (equal-area ellipse):`,
-      `${pad("  minor = d2·(1−sq)")}${g(r.d2)} × ${g(1 - sq)} = ${g(minor)} m`,
-      `${pad("  major = d2÷(1−sq)")}${g(r.d2)} ÷ ${g(1 - sq)} = ${g(r.pathLength)} m`,
+      `${pad("  minor = h")}${g(minor)} m   (the installed height)`,
+      `${pad("  major = d2² ÷ h")}${g(r.d2)}² ÷ ${g(minor)} = ${g(r.pathLength)} m`,
       `${pad("  area (π/4·maj·min)")}${g((Math.PI / 4) * r.pathLength * minor)} m²`
         + `   = free circle π/4·d2² = ${g((Math.PI / 4) * r.d2 * r.d2)} m²`,
       ``,
       `${pad("L  = diffusion path")}${g(r.pathLength)} m   (the major axis)`,
       r.widthMode === "auto"
-        ? `${pad("w  = ½ ellipse perimeter")}${g(r.width)} m   (auto, semi-axes `
-            + `${g(r.semiMajor)} / ${g(r.semiMinor)} m)`
+        ? `${pad("w  = installed height")}${g(r.width)} m   (auto, = h)`
         : `${pad("w  = exposed face height")}${raw.width} ${raw.widthUnit} = ${g(r.width)} m   (manual)`,
-      `${pad("A  = π·d1·w")}π × ${g(r.d1)} × ${g(r.width)} = ${g(Math.PI * r.d1 * r.width)} m²`,
-      `${pad("A/L")}${g(Math.PI * r.d1 * r.width)} ÷ ${g(r.pathLength)} = ${g(r.geometryFactor)} m`,
+      ``,
+      `annular conductance (gas spreads outward from r₁ to r₂):`,
+      `${pad("  r₁ = d1/2")}${g(r.r1)} m`,
+      `${pad("  r₂ = r₁ + L")}${g(r.r1)} + ${g(r.pathLength)} = ${g(r.r2)} m`,
+      `${pad("  A/L = 2π·w/ln(r₂/r₁)")}2π × ${g(r.width)} ÷ ln(${g(r.r2 / r.r1)})`
+        + ` = ${g(r.geometryFactor)} m`,
+      `${pad("  (thin-cord check)")}π·(d1+L)·w/L = ${g((Math.PI * (r.d1 + r.pathLength) * r.width) / r.pathLength)} m`,
     ];
     out.push(wcStep(2 + i, `O-ring ${i + 1} — geometry`, lines));
   });
@@ -467,6 +515,8 @@ function recalculate() {
   for (const [i, r] of params.orings.entries()) {
     for (const [key, value] of Object.entries(r)) {
       if (key === "width" && r.widthMode === "auto") continue;
+      if (key === "squeezePct" && r.compressionMode !== "squeeze") continue;
+      if (key === "glandDepth" && r.compressionMode !== "gland") continue;
       if (typeof value === "number" && !Number.isFinite(value)) {
         showError(`O-ring ${i + 1}: "${key}" is missing or not a number.`);
         return;
@@ -515,7 +565,7 @@ function recalculate() {
   renderWorkedCalc(result, params);
 }
 
-// In "auto" mode the face height is derived from the ellipse, so show the
+// In "auto" mode the face height is the installed cord height, so show the
 // computed value in the (disabled) input rather than leaving a stale number
 // the user might think is being used. Setting .value in script does not
 // re-fire input events, so this cannot loop.

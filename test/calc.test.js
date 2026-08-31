@@ -18,7 +18,9 @@ function oring(overrides = {}) {
     d1: 50, d1Unit: "mm",
     d2: 3, d2Unit: "mm",
     width: 3, widthUnit: "mm",
+    compressionMode: "squeeze",
     squeezePct: 0,
+    glandDepth: 2.4, glandDepthUnit: "mm",
     permeability: 15, permeabilityUnit: "barrer",
     ...overrides,
   };
@@ -159,8 +161,13 @@ test("thicker cord (d2 alone, width held fixed) means less permeation and longer
     orings: [oring({ d2: 6, d2Unit: "mm", width: 3, widthUnit: "mm" })],
   });
   assert.ok(thick.tLockoutSeconds > thin.tLockoutSeconds);
-  // Doubling d2 with width and d1 held fixed should exactly halve K (K ∝ 1/d2).
-  assert.ok(Math.abs(thick.si.K_total * 3 - thin.si.K_total) / thin.si.K_total < 1e-9);
+  // Tripling d2 with width and d1 held fixed cuts K by ln(r2/r1) rather than
+  // exactly 3x, because the flux spreads across the annulus as it crosses.
+  const ratio = Math.log((25 + 6) / 25) / Math.log((25 + 2) / 25);
+  assert.ok(
+    Math.abs(thin.si.K_total / thick.si.K_total - ratio) < 1e-9,
+    `got ${thin.si.K_total / thick.si.K_total}, expected ${ratio}`
+  );
 });
 
 test("wider contact band alone means more permeation and shorter time to lockout", () => {
@@ -241,8 +248,13 @@ test("squeeze bulges the cord into an ellipse, lengthening the path: less permea
   const tight = computePermeation({ ...base, orings: [oring({ squeezePct: 50 })] });
 
   assert.ok(tight.tLockoutSeconds > loose.tLockoutSeconds);
-  // 50% squeeze doubles the major axis, so K exactly halves.
-  assert.ok(Math.abs(tight.si.K_total - 0.5 * loose.si.K_total) / loose.si.K_total < 1e-9);
+  // 50% squeeze doubles the major axis. In the annular form the conductance
+  // goes as 1/ln(r2/r1), so K drops by ln(1.12)/ln(1.24), not exactly a half.
+  const expectedRatio = Math.log(1.12) / Math.log(1.24);
+  assert.ok(
+    Math.abs(tight.si.K_total / loose.si.K_total - expectedRatio) < 1e-9,
+    `got ${tight.si.K_total / loose.si.K_total}, expected ${expectedRatio}`
+  );
   // Reported path is the ellipse major axis d2/(1-squeeze).
   assert.ok(Math.abs(tight.orings[0].pathLength - 0.003 / 0.5) < 1e-12);
 });
@@ -284,8 +296,9 @@ test("shrinking d2 alone still shortens the path and speeds up permeation, at an
       thin.tLockoutSeconds < thick.tLockoutSeconds,
       `thinner cord should permeate faster at ${squeezePct}% squeeze`
     );
-    // K ∝ 1/d2 with squeeze and width held fixed.
-    assert.ok(Math.abs(thin.si.K_total - 3 * thick.si.K_total) / thick.si.K_total < 1e-9);
+    // K falls with d2 at fixed squeeze and width, but no longer as exactly
+    // 1/d2: the annular form spreads the flux over a growing outer radius.
+    assert.ok(thin.si.K_total > 2.5 * thick.si.K_total);
   }
 });
 
@@ -312,7 +325,7 @@ test("ellipsePerimeter reduces to a circle's circumference when a == b", () => {
   assert.ok(Math.abs(ellipsePerimeter(0.004, 0.004) - 2 * Math.PI * 0.004) < 1e-12);
 });
 
-test("auto face height is half the ellipse perimeter", () => {
+test("auto width is the installed cord height (the gland depth)", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -325,13 +338,13 @@ test("auto face height is half the ellipse perimeter", () => {
     orings: [oring({ d2: 3, d2Unit: "mm", squeezePct: 20, widthMode: "auto" })],
   }).orings[0];
 
-  const expected = ellipsePerimeter(r.semiMajor, r.semiMinor) / 2;
-  assert.ok(Math.abs(r.width - expected) / expected < 1e-12);
-  // 3 mm cord at 20% squeeze -> ellipse 2.4 x 3.75 mm -> half perimeter ~4.889 mm
-  assert.ok(Math.abs(r.width - 0.004889) < 2e-6, `got ${r.width}`);
+  // 3 mm cord at 20% squeeze -> installed height 2.4 mm.
+  assert.ok(Math.abs(r.width - 0.0024) < 1e-12, `got ${r.width}`);
+  assert.ok(Math.abs(r.glandDepth - 0.0024) < 1e-12);
+  assert.ok(Math.abs(r.width - r.semiMinor * 2) < 1e-15);
 });
 
-test("auto mode makes the result independent of d2 (the ellipse scales with it)", () => {
+test("gland depth and squeeze % are two views of the same geometry", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -339,16 +352,89 @@ test("auto mode makes the result independent of d2 (the ellipse scales with it)"
     pLock: 100, pLockUnit: "bar",
     pExt: 1, pExtUnit: "bar",
   };
-  const ref = computePermeation({
-    ...base, orings: [oring({ d2: 3, squeezePct: 20, widthMode: "auto" })],
+  const bySqueeze = computePermeation({
+    ...base,
+    orings: [oring({ d2: 3, squeezePct: 20, widthMode: "auto" })],
   });
-  for (const d2 of [1, 2, 6, 10]) {
-    const other = computePermeation({
-      ...base, orings: [oring({ d2, squeezePct: 20, widthMode: "auto" })],
+  const byGland = computePermeation({
+    ...base,
+    orings: [oring({
+      d2: 3, compressionMode: "gland", glandDepth: 2.4, glandDepthUnit: "mm",
+      widthMode: "auto",
+    })],
+  });
+  assert.ok(
+    Math.abs(byGland.si.K_total - bySqueeze.si.K_total) / bySqueeze.si.K_total < 1e-12,
+    "20% squeeze on a 3 mm cord must equal a 2.4 mm gland depth"
+  );
+  assert.ok(Math.abs(byGland.orings[0].squeezePct - 20) < 1e-9);
+});
+
+test("in a FIXED GLAND a fatter cord permeates markedly less (path grows as d2^2/h)", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const run = (d2) =>
+    computePermeation({
+      ...base,
+      orings: [oring({
+        d2, compressionMode: "gland", glandDepth: 2.4, glandDepthUnit: "mm",
+        widthMode: "auto",
+      })],
     });
+
+  const cords = [2.5, 3, 4, 5, 6, 8];
+  let prev = null;
+  for (const d2 of cords) {
+    const r = run(d2);
+    // The path length is exactly d2^2 / h.
     assert.ok(
-      Math.abs(other.si.K_total - ref.si.K_total) / ref.si.K_total < 1e-12,
-      `auto mode should not depend on d2, but d2=${d2} differed`
+      Math.abs(r.orings[0].pathLength - (d2 * d2) / 2.4 / 1000) < 1e-12,
+      `path length wrong at d2=${d2}`
+    );
+    if (prev) {
+      assert.ok(
+        r.tLockoutSeconds > prev.t,
+        `a fatter cord in the same gland must last longer: d2=${d2} did not`
+      );
+      assert.ok(r.si.K_total < prev.K, `K must fall with d2 at fixed gland: d2=${d2}`);
+    }
+    prev = { t: r.tLockoutSeconds, K: r.si.K_total };
+  }
+
+  // Doubling the cord in the same groove is a large effect, not a rounding one.
+  assert.ok(run(6).tLockoutSeconds > 3 * run(3).tLockoutSeconds);
+});
+
+test("at FIXED SQUEEZE %% the cross-section is self-similar, so d2 barely matters", () => {
+  // This is the counterpart of the test above and is real physics, not a bug:
+  // holding the squeeze RATIO fixed scales the whole cross-section with d2,
+  // and 2D steady diffusion is scale-invariant. Only the annulus curvature
+  // (the seal's finite radius) leaves any d2 dependence at all.
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const K = (d2) =>
+    computePermeation({
+      ...base, orings: [oring({ d1: 500, d2, squeezePct: 20, widthMode: "auto" })],
+    }).si.K_total;
+
+  // On a large-bore seal the cord is thin relative to the radius and the
+  // cancellation is nearly exact over a 12x range of cord diameters.
+  const ref = K(3);
+  for (const d2 of [1, 2, 6, 12]) {
+    assert.ok(
+      Math.abs(K(d2) - ref) / ref < 0.05,
+      `expected near-cancellation at fixed squeeze %, d2=${d2} moved it by ` +
+        `${(100 * Math.abs(K(d2) - ref)) / ref}%`
     );
   }
 });
@@ -383,7 +469,7 @@ test("auto mode still responds to squeeze", () => {
   assert.ok(tight.tLockoutSeconds > loose.tLockoutSeconds);
 });
 
-test("cord diameter cancels, but seal diameter does not: K scales linearly with d1", () => {
+test("scaling the whole seal is not neutral: bigger seal, more permeation", () => {
   const base = {
     volume: 1, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -394,16 +480,9 @@ test("cord diameter cancels, but seal diameter does not: K scales linearly with 
   const K = (d1, d2, width) =>
     computePermeation({ ...base, orings: [oring({ d1, d2, width, squeezePct: 20 })] }).si.K_total;
 
-  // Same bore, fatter cord (d2 and w together, d1 fixed) -> unchanged.
+  // Scaling every dimension by k scales the annulus radii by k too, so
+  // ln(r2/r1) is unchanged and K is exactly linear in the scale factor.
   const ref = K(50, 3, 2.4);
-  for (const k of [0.5, 2, 4]) {
-    assert.ok(
-      Math.abs(K(50, 3 * k, 2.4 * k) - ref) / ref < 1e-12,
-      `cord scaling should cancel at fixed d1, but x${k} moved the result`
-    );
-  }
-
-  // Scaling the WHOLE seal (d1 too) is NOT neutral: K is linear in d1.
   for (const k of [0.5, 2, 4]) {
     const scaled = K(50 * k, 3 * k, 2.4 * k);
     assert.ok(
