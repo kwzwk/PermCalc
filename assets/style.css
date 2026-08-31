@@ -109,6 +109,10 @@ fieldset legend {
 
 .field.wide { grid-template-columns: 1fr; }
 .field.wide .value-unit { grid-template-columns: 1fr 130px; }
+.field.wide .value-unit.two-select { grid-template-columns: 1fr 1fr; }
+.field.wide .value-unit.two-select .value-unit { grid-template-columns: 1fr 58px; }
+.oring-auto-note { margin: 6px 0 0; }
+.oring-auto-note strong { color: var(--text); }
 
 input[type="number"], select {
   background: #0e1424;
@@ -143,6 +147,63 @@ input[type="number"]:focus, select:focus {
   align-items: center;
   justify-content: center;
   flex: none;
+}
+
+.oring-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.oring-card .hint { margin: 6px 0 0; }
+
+.oring-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.oring-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+button.remove-oring {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+button.remove-oring:hover { color: var(--bad); border-color: var(--bad); }
+button.remove-oring:disabled { opacity: 0.35; cursor: not-allowed; }
+
+button.secondary-button {
+  width: 100%;
+  padding: 9px;
+  border-radius: 7px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+button.secondary-button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 button#calculate {
@@ -248,3 +309,103 @@ footer {
 }
 
 footer a { color: var(--accent); }
+
+
+/* ---- geometry explainer (drawings) ------------------------------------- */
+.explainer {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  width: calc(100% - 2 * clamp(16px, 4vw, 48px));
+}
+
+.explainer > details > summary {
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 4px 0;
+  list-style: revert;
+}
+
+.explainer > details > summary:focus-visible { outline: 2px solid var(--accent); }
+
+.explainer figure {
+  margin: 18px 0;
+  background: #0e1424;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 16px 12px;
+  overflow-x: auto;
+}
+
+.explainer figure svg { display: block; width: 100%; height: auto; min-width: 460px; }
+
+.explainer figcaption {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.explainer figcaption b { color: var(--text); font-weight: 600; }
+
+.explainer .svg-label { font-family: inherit; font-size: 13px; fill: var(--text); }
+.explainer .svg-dim   { font-family: inherit; font-size: 12px; fill: var(--accent); }
+.explainer .svg-flow  { font-family: inherit; font-size: 12px; fill: var(--warn); }
+.explainer .svg-muted { font-family: inherit; font-size: 12px; fill: var(--text-dim); }
+
+
+/* ---- worked calculation ------------------------------------------------ */
+.wc-step { margin: 0 0 18px; }
+
+.wc-step-head {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wc-step-head .wc-num {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.wc-step-note {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0 0 6px;
+}
+
+.wc-block {
+  background: #0e1424;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+
+.wc-block pre {
+  margin: 0;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-result {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  margin-top: 4px;
+}
