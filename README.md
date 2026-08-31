@@ -118,10 +118,15 @@ the barrier thickness. They answer different questions:
 - *"I changed to a thinner cord in the same gland"* → lower `d2`, and
   lower `squeeze` too (a thinner cord in a fixed-depth groove is
   compressed less) — check your actual gland depth.
-- *"I scaled the whole seal geometrically"* → if you scale `w` and
-  `d2` together at constant squeeze, permeation is genuinely unchanged.
-  That is a real physical result, not a modelling artefact: geometrically
-  similar seals at the same squeeze have the same permeation resistance.
+- *"Same bore, fatter cord"* → if you scale `w` and `d2` together at
+  constant squeeze while `d1` stays put, permeation is genuinely
+  unchanged. `w` and `L` grow in step and the ratio `w/L` is fixed by
+  squeeze alone, so the cord diameter cancels exactly.
+- *"Bigger seal all round"* → scaling `d1` as well is **not** neutral.
+  `A/L = π·d1·w·(1 − squeeze)/d2` is linear in `d1`, so a seal scaled up
+  ×2 in every dimension has exactly **2× the permeation conductance** —
+  the circumference grew and nothing offsets it. Only the *cord* cancels,
+  never the seal diameter.
 
 ### Permeation flux (multiple O-rings, in parallel)
 

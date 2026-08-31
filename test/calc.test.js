@@ -383,6 +383,36 @@ test("auto mode still responds to squeeze", () => {
   assert.ok(tight.tLockoutSeconds > loose.tLockoutSeconds);
 });
 
+test("cord diameter cancels, but seal diameter does not: K scales linearly with d1", () => {
+  const base = {
+    volume: 1, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 0, pExtUnit: "bar",
+  };
+  const K = (d1, d2, width) =>
+    computePermeation({ ...base, orings: [oring({ d1, d2, width, squeezePct: 20 })] }).si.K_total;
+
+  // Same bore, fatter cord (d2 and w together, d1 fixed) -> unchanged.
+  const ref = K(50, 3, 2.4);
+  for (const k of [0.5, 2, 4]) {
+    assert.ok(
+      Math.abs(K(50, 3 * k, 2.4 * k) - ref) / ref < 1e-12,
+      `cord scaling should cancel at fixed d1, but x${k} moved the result`
+    );
+  }
+
+  // Scaling the WHOLE seal (d1 too) is NOT neutral: K is linear in d1.
+  for (const k of [0.5, 2, 4]) {
+    const scaled = K(50 * k, 3 * k, 2.4 * k);
+    assert.ok(
+      Math.abs(scaled - k * ref) / (k * ref) < 1e-12,
+      `full geometric scaling by ${k} should give ${k}x K, got ${scaled / ref}x`
+    );
+  }
+});
+
 test("secondsTo converts across duration units", () => {
   assert.equal(secondsTo(3600, "hour"), 1);
   assert.ok(Math.abs(secondsTo(86400 * 365.2425, "year") - 1) < 1e-9);
