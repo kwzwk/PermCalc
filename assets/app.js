@@ -2,6 +2,11 @@ import {
   computePermeation,
   GASES,
   LENGTH_UNITS,
+  PRESSURE_UNITS,
+  VOLUME_UNITS,
+  PERMEABILITY_UNITS,
+  R_GAS,
+  V_MOLAR_STP,
   secondsTo,
   bestDurationUnit,
 } from "./calc.js";
@@ -285,6 +290,166 @@ function renderBreakdown(result) {
     rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
 }
 
+
+// ---- worked calculation --------------------------------------------------
+// Re-derives the headline number step by step from the values on screen, so
+// the result can be checked by hand rather than taken on trust.
+const PERM_UNIT_LABEL = {
+  barrer: "Barrer",
+  traditional: "cm3(STP)*cm/(cm2*s*cmHg)",
+  practical: "cm3(STP)*mm/(m2*day*atm)",
+  practical_bar: "cm3(STP)*mm/(m2*day*bar)",
+  practical_mm2_bar: "cm3(STP)*mm/(mm2*day*bar)",
+  ntp_hour_bar: "cm3(NTP)*mm/(m2*h*bar)",
+  si: "mol/(m*s*Pa)",
+  si_vol: "m3(STP)/(m*s*Pa)",
+};
+
+// 6 significant digits, switching to exponent form where that reads better.
+function g(v) {
+  if (!Number.isFinite(v)) return "—";
+  if (v === 0) return "0";
+  const a = Math.abs(v);
+  if (a >= 1e6 || a < 1e-4) return v.toExponential(5);
+  return String(Number(v.toPrecision(6)));
+}
+
+function pad(label, width = 26) {
+  return label + " ".repeat(Math.max(1, width - label.length));
+}
+
+function wcStep(n, title, lines, note) {
+  return (
+    `<div class="wc-step">` +
+    `<div class="wc-step-head"><span class="wc-num">${n}</span>${title}</div>` +
+    (note ? `<p class="wc-step-note">${note}</p>` : "") +
+    `<div class="wc-block"><pre>${lines.join("\n")}</pre></div>` +
+    `</div>`
+  );
+}
+
+function renderWorkedCalc(result, params) {
+  const s = result.si;
+  const out = [];
+  const nRings = result.orings.length;
+
+  // 1 — inputs to SI
+  const l1 = [
+    `${pad("compartment volume")}${params.volume} ${params.volumeUnit}`
+      + ` × ${g(VOLUME_UNITS[params.volumeUnit])} = ${g(s.V)} m³`,
+    `${pad("operating temperature")}${params.temperature} °${params.temperatureUnit}`
+      + ` = ${g(s.T)} K`,
+    `${pad("initial pressure P0")}${params.p0} ${params.p0Unit}`
+      + ` × ${g(PRESSURE_UNITS[params.p0Unit])} = ${g(s.P0)} Pa`,
+    `${pad("lockout pressure")}${params.pLock} ${params.pLockUnit}`
+      + ` × ${g(PRESSURE_UNITS[params.pLockUnit])} = ${g(s.Plock)} Pa`,
+    `${pad("external partial pressure")}${params.pExt} ${params.pExtUnit}`
+      + ` × ${g(PRESSURE_UNITS[params.pExtUnit])} = ${g(s.Pext)} Pa`,
+  ];
+  out.push(wcStep(1, "Convert inputs to SI", l1));
+
+  // 2 — per O-ring geometry
+  result.orings.forEach((r, i) => {
+    const raw = params.orings[i];
+    const sq = r.squeezePct / 100;
+    const minor = r.d2 * (1 - sq);
+    const lines = [
+      `${pad("d1 (inner diameter)")}${raw.d1} ${raw.d1Unit} = ${g(r.d1)} m`,
+      `${pad("d2 (free cord)")}${raw.d2} ${raw.d2Unit} = ${g(r.d2)} m`,
+      `${pad("squeeze")}${r.squeezePct} %  ->  1 − squeeze = ${g(1 - sq)}`,
+      ``,
+      `squeezed cross-section (equal-area ellipse):`,
+      `${pad("  minor = d2·(1−sq)")}${g(r.d2)} × ${g(1 - sq)} = ${g(minor)} m`,
+      `${pad("  major = d2÷(1−sq)")}${g(r.d2)} ÷ ${g(1 - sq)} = ${g(r.pathLength)} m`,
+      `${pad("  area (π/4·maj·min)")}${g((Math.PI / 4) * r.pathLength * minor)} m²`
+        + `   = free circle π/4·d2² = ${g((Math.PI / 4) * r.d2 * r.d2)} m²`,
+      ``,
+      `${pad("L  = diffusion path")}${g(r.pathLength)} m   (the major axis)`,
+      r.widthMode === "auto"
+        ? `${pad("w  = ½ ellipse perimeter")}${g(r.width)} m   (auto, semi-axes `
+            + `${g(r.semiMajor)} / ${g(r.semiMinor)} m)`
+        : `${pad("w  = exposed face height")}${raw.width} ${raw.widthUnit} = ${g(r.width)} m   (manual)`,
+      `${pad("A  = π·d1·w")}π × ${g(r.d1)} × ${g(r.width)} = ${g(Math.PI * r.d1 * r.width)} m²`,
+      `${pad("A/L")}${g(Math.PI * r.d1 * r.width)} ÷ ${g(r.pathLength)} = ${g(r.geometryFactor)} m`,
+    ];
+    out.push(wcStep(2 + i, `O-ring ${i + 1} — geometry`, lines));
+  });
+
+  // 3 — permeability + K per ring
+  const stepK = 2 + nRings;
+  const lK = [];
+  result.orings.forEach((r, i) => {
+    const raw = params.orings[i];
+    const unitLabel = PERM_UNIT_LABEL[raw.permeabilityUnit] || raw.permeabilityUnit;
+    lK.push(
+      `O-ring ${i + 1}:`,
+      `${pad("  P (as entered)")}${raw.permeability} ${unitLabel}`,
+      `${pad("  P -> SI")}${raw.permeability} × ${g(PERMEABILITY_UNITS[raw.permeabilityUnit])}`
+        + ` = ${g(r.P_SI)} mol/(m·s·Pa)`,
+      `${pad("  K = P · A/L")}${g(r.P_SI)} × ${g(r.geometryFactor)} = ${g(r.K)} mol/(s·Pa)`,
+      ``
+    );
+  });
+  lK.push(
+    nRings > 1
+      ? `${pad("K_total = Σ K")}${result.orings.map((r) => g(r.K)).join("  +  ")}`
+          + ` = ${g(s.K_total)} mol/(s·Pa)`
+      : `${pad("K_total")}${g(s.K_total)} mol/(s·Pa)   (single O-ring)`
+  );
+  out.push(
+    wcStep(stepK, "Permeability → conductance", lK,
+      "Each O-ring vents the same compartment in parallel, so their conductances add.")
+  );
+
+  // 4 — decay constant
+  const lA = [
+    `α = R · T · K_total / V`,
+    `  = ${g(R_GAS)} × ${g(s.T)} × ${g(s.K_total)} ÷ ${g(s.V)}`,
+    `  = ${g(s.alpha)} s⁻¹`,
+    ``,
+    `time constant 1/α = ${g(1 / s.alpha)} s = ${fmtDuration(1 / s.alpha)}`,
+  ];
+  out.push(
+    wcStep(stepK + 1, "Pressure-decay constant", lA,
+      "From the ideal-gas mass balance dP/dt = −α·(P − P_ext).")
+  );
+
+  // 5 — time to lockout
+  const num = s.P0 - s.Pext;
+  const den = s.Plock - s.Pext;
+  const lT = [
+    `t = ln[ (P0 − P_ext) / (P_lock − P_ext) ] / α`,
+    `  = ln[ (${g(s.P0)} − ${g(s.Pext)}) / (${g(s.Plock)} − ${g(s.Pext)}) ] ÷ ${g(s.alpha)}`,
+    `  = ln[ ${g(num)} / ${g(den)} ] ÷ ${g(s.alpha)}`,
+    `  = ${g(Math.log(num / den))} ÷ ${g(s.alpha)}`,
+    `  = ${g(result.tLockoutSeconds)} s`,
+    ``,
+    `<span class="wc-result">= ${g(secondsTo(result.tLockoutSeconds, "day"))} days`
+      + `   =  ${g(secondsTo(result.tLockoutSeconds, "year"))} years</span>`,
+  ];
+  out.push(wcStep(stepK + 2, "Time to lockout pressure", lT));
+
+  // 6 — derived outputs
+  const lD = [
+    `${pad("n0 = P0·V/(R·T)")}${g(s.P0)} × ${g(s.V)} ÷ (${g(R_GAS)} × ${g(s.T)})`
+      + ` = ${g(result.n0)} mol`,
+    `${pad("Q0 = K_total·(P0−P_ext)")}${g(s.K_total)} × ${g(num)} = ${g(result.molarFlow0)} mol/s`,
+    `${pad("   in cm³(STP)/min")}${g(result.molarFlow0)} × ${g(V_MOLAR_STP)} × 1e6 × 60`
+      + ` = ${g(result.volumetricFlow0_STP * 1e6 * 60)}`,
+  ];
+  if (result.massFlow0 != null) {
+    const M = currentMolarMassKgPerMol();
+    lD.push(
+      `${pad("   in g/day")}${g(result.molarFlow0)} × ${g(M)} × 86400 × 1000`
+        + ` = ${g(result.massFlow0 * 86400 * 1000)}`,
+      `${pad("initial charge mass")}${g(result.n0)} × ${g(M)} × 1000 = ${g(result.mass0 * 1000)} g`
+    );
+  }
+  out.push(wcStep(stepK + 3, "Derived outputs", lD));
+
+  $("worked-calc-body").innerHTML = out.join("");
+}
+
 // ---- main -----------------------------------------------------------------------
 // Recalculates and re-renders from the form's current values. Called on
 // every input/change (not just on Calculate) so the displayed result
@@ -347,6 +512,7 @@ function recalculate() {
   syncAutoWidths(result);
   drawChart(result);
   renderBreakdown(result);
+  renderWorkedCalc(result, params);
 }
 
 // In "auto" mode the face height is derived from the ellipse, so show the

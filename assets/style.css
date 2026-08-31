@@ -355,3 +355,57 @@ footer a { color: var(--accent); }
 .explainer .svg-dim   { font-family: inherit; font-size: 12px; fill: var(--accent); }
 .explainer .svg-flow  { font-family: inherit; font-size: 12px; fill: var(--warn); }
 .explainer .svg-muted { font-family: inherit; font-size: 12px; fill: var(--text-dim); }
+
+
+/* ---- worked calculation ------------------------------------------------ */
+.wc-step { margin: 0 0 18px; }
+
+.wc-step-head {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wc-step-head .wc-num {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.wc-step-note {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0 0 6px;
+}
+
+.wc-block {
+  background: #0e1424;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+
+.wc-block pre {
+  margin: 0;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-result {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  margin-top: 4px;
+}
