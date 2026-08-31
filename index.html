@@ -147,7 +147,7 @@
             </label>
             <div class="value-unit two-select">
               <select class="oring-widthMode">
-                <option value="auto" selected>= installed height (auto)</option>
+                <option value="auto" selected>from solved shape factor (auto)</option>
                 <option value="manual">enter manually</option>
               </select>
               <div class="value-unit">
@@ -162,9 +162,12 @@
             </div>
           </div>
           <p class="hint oring-auto-note">
-            Auto sets w to the installed cord height (the groove depth) — the flank
-            height gas enters through, measured across the gas path. Use manual only
-            if part of the flank is shielded (backup ring, dovetail groove).
+            Auto sets w so that w/L equals the shape factor from a numerical
+            solution of the real 2D diffusion field across the cord (0.867 at
+            20% squeeze). Neither obvious guess is right: the flank's arc length
+            overstates permeation by ~50%, the plain installed height understates
+            it by ~26%. Use manual only if part of the flank is shielded (backup
+            ring, dovetail groove).
             <strong>Cord diameter only changes the answer at a fixed groove depth</strong>:
             hold squeeze&nbsp;% fixed instead and you scale the whole cross-section
             with d2, which is very nearly a no-op.
@@ -208,6 +211,41 @@
         </div>
       </template>
 
+      <fieldset>
+        <legend>Calculation model</legend>
+        <div class="field wide">
+          <label for="geometryModel">Permeation geometry
+            <span class="tip" title="Planar is the conventional screening form: a flat slab of area A and thickness L. Annular is a refinement that accounts for the gas fanning outward as it crosses the seal; it reduces to the planar form for a thin cord. They agree to ~0.2% for normal cords.">?</span>
+          </label>
+          <select id="geometryModel">
+            <option value="planar" selected>Planar slab: G = A / L</option>
+            <option value="annular">Annular radial: G = 2πw / ln(r₂/r₁)</option>
+          </select>
+        </div>
+        <div class="field wide">
+          <label for="pathModel">Diffusion path L
+            <span class="tip" title="Bookkeeping only: which length is called the path. In auto width mode the answer is the same either way, because the conductance is a dimensionless shape factor. It changes what a MANUAL face height means.">?</span>
+          </label>
+          <select id="pathModel">
+            <option value="cord" selected>Free cord diameter d2</option>
+            <option value="ellipse">Equal-area ellipse major axis d2² / h</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="modelFactor">Calibration factor
+            <span class="tip" title="Multiplies the geometry factor. Leave at 1 unless you have fitted it to measured pressure-decay data from this exact seal and gas.">?</span>
+          </label>
+          <div class="value-unit">
+            <input type="number" id="modelFactor" step="any" min="0.000001" value="1" />
+            <select disabled><option>×</option></select>
+          </div>
+        </div>
+        <p class="hint">
+          Baseline: A = π·(d1 + d2)·w, Q = P·(A/L)·Δp, with w set from a solved
+          2D shape factor. Keep the calibration factor at 1 unless it is fitted
+          to measured data.
+        </p>
+      </fieldset>
       <fieldset>
         <legend>Pressures (absolute)</legend>
         <div class="field">

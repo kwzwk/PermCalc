@@ -199,6 +199,9 @@ function readParams() {
     p0: v("p0"), p0Unit: $("p0Unit").value,
     pLock: v("pLock"), pLockUnit: $("pLockUnit").value,
     pExt: v("pExt"), pExtUnit: $("pExtUnit").value,
+    geometryModel: $("geometryModel").value,
+    pathModel: $("pathModel").value,
+    modelFactor: v("modelFactor"),
     molarMass: currentMolarMassKgPerMol(),
   };
 }
@@ -304,6 +307,7 @@ function drawChart(result) {
 function renderBreakdown(result) {
   const s = result.si;
   const rows = [
+    ["Calculation model", `${result.orings[0].geometryModel}; L = ${result.orings[0].pathModel}; calibration ${fmt(result.orings[0].modelFactor)}×`],
     ["Decay time-constant α", `${fmt(s.alpha)} s⁻¹  (1/α = ${fmtDuration(1 / s.alpha)})`],
     ["Combined geometry×permeability  K_total = Σ(P · 2π·w / ln(r₂/r₁))", `${fmt(s.K_total)} mol/(s·Pa)`],
     ["P₀ (SI)", `${fmt(s.P0)} Pa`],
@@ -404,21 +408,40 @@ function renderWorkedCalc(result, params) {
       ``,
       `squeezed cross-section (equal-area ellipse):`,
       `${pad("  minor = h")}${g(minor)} m   (the installed height)`,
-      `${pad("  major = d2² ÷ h")}${g(r.d2)}² ÷ ${g(minor)} = ${g(r.pathLength)} m`,
-      `${pad("  area (π/4·maj·min)")}${g((Math.PI / 4) * r.pathLength * minor)} m²`
+      `${pad("  major = d2² ÷ h")}${g(r.d2)}² ÷ ${g(minor)} = ${g(r.ellipseMajor)} m`,
+      `${pad("  area (π/4·maj·min)")}${g((Math.PI / 4) * r.ellipseMajor * minor)} m²`
         + `   = free circle π/4·d2² = ${g((Math.PI / 4) * r.d2 * r.d2)} m²`,
       ``,
-      `${pad("L  = diffusion path")}${g(r.pathLength)} m   (the major axis)`,
-      r.widthMode === "auto"
-        ? `${pad("w  = installed height")}${g(r.width)} m   (auto, = h)`
-        : `${pad("w  = exposed face height")}${raw.width} ${raw.widthUnit} = ${g(r.width)} m   (manual)`,
+      `${pad("L  = diffusion path")}${g(r.pathLength)} m   (${
+        r.pathModel === "ellipse" ? "the ellipse major axis" : "the free cord diameter d2"})`,
+      ...(r.widthMode === "auto"
+        ? [
+            `${pad("shape factor S (2D solve)")}ρ(${g(sq)}) × (1−sq)² = ${g(r.shapeRho)} × `
+              + `${g((1 - sq) ** 2)} = ${g(r.shapeFactor)}   (dimensionless)`,
+            `${pad("w  = S · L")}${g(r.shapeFactor)} × ${g(r.pathLength)} = ${g(r.width)} m   (auto)`,
+          ]
+        : [`${pad("w  = exposed face height")}${raw.width} ${raw.widthUnit} = ${g(r.width)} m   (manual)`]),
       ``,
-      `annular conductance (gas spreads outward from r₁ to r₂):`,
-      `${pad("  r₁ = d1/2")}${g(r.r1)} m`,
-      `${pad("  r₂ = r₁ + L")}${g(r.r1)} + ${g(r.pathLength)} = ${g(r.r2)} m`,
-      `${pad("  A/L = 2π·w/ln(r₂/r₁)")}2π × ${g(r.width)} ÷ ln(${g(r.r2 / r.r1)})`
-        + ` = ${g(r.geometryFactor)} m`,
-      `${pad("  (thin-cord check)")}π·(d1+L)·w/L = ${g((Math.PI * (r.d1 + r.pathLength) * r.width) / r.pathLength)} m`,
+      ...(r.geometryModel === "annular"
+        ? [
+            `annular model (gas fans outward as it crosses):`,
+            `${pad("  mean diameter d1+d2")}${g(r.meanDiameter)} m`,
+            `${pad("  r₁ = (d1+d2)/2 − L/2")}${g(r.r1)} m`,
+            `${pad("  r₂ = (d1+d2)/2 + L/2")}${g(r.r2)} m`,
+            `${pad("  G = 2π·w/ln(r₂/r₁)")}2π × ${g(r.width)} ÷ ln(${g(r.r2 / r.r1)})`
+              + ` = ${g(r.annularGeometryFactor)} m`,
+            `${pad("  (planar cross-check)")}π·(d1+d2)·w/L = ${g(r.planarGeometryFactor)} m`,
+          ]
+        : [
+            `planar model (flat slab of area A, thickness L):`,
+            `${pad("  circumference π(d1+d2)")}π × ${g(r.meanDiameter)} = ${g(r.circumference)} m`,
+            `${pad("  A = circumference · w")}${g(r.circumference)} × ${g(r.width)} = ${g(r.exposedArea)} m²`,
+            `${pad("  G = A / L")}${g(r.exposedArea)} ÷ ${g(r.pathLength)} = ${g(r.planarGeometryFactor)} m`,
+            `${pad("  (annular cross-check)")}2π·w/ln(r₂/r₁) = ${g(r.annularGeometryFactor)} m`,
+          ]),
+      ...(r.modelFactor !== 1
+        ? [``, `${pad("calibration factor")}× ${g(r.modelFactor)}  ->  G = ${g(r.geometryFactor)} m`]
+        : []),
     ];
     out.push(wcStep(2 + i, `O-ring ${i + 1} — geometry`, lines));
   });
@@ -523,7 +546,7 @@ function recalculate() {
       }
     }
   }
-  for (const key of ["volume", "temperature", "p0", "pLock", "pExt"]) {
+  for (const key of ["volume", "temperature", "p0", "pLock", "pExt", "modelFactor"]) {
     if (!Number.isFinite(params[key])) {
       showError(`Please fill in all fields — "${key}" is missing or not a number.`);
       return;
@@ -565,7 +588,7 @@ function recalculate() {
   renderWorkedCalc(result, params);
 }
 
-// In "auto" mode the face height is the installed cord height, so show the
+// In "auto" mode the face height is derived from the shape factor, so show the
 // computed value in the (disabled) input rather than leaving a stale number
 // the user might think is being used. Setting .value in script does not
 // re-fire input events, so this cannot loop.
