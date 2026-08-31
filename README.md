@@ -91,12 +91,24 @@ squeeze fraction                 = 1 - h / d2
 Gas crosses the seal along that major axis, so **more squeeze lengthens
 the path and reduces permeation**.
 
-The entry face is the cord's flank. Its height across the gas path is the
-installed height, so `w = h` in auto mode. (Using the flank's *arc length*
-instead — half the ellipse's perimeter — overstates the area and
-degenerates: as the ellipse elongates, the half-perimeter tends to the
-major axis itself, so `w/L → 1` and the model stops responding to squeeze
-at all. The projected height does not have that failure mode.)
+The entry face is the cord's flank, but its *effective* height is not simply
+the installed height — the diffusion field spreads through the bulging middle
+of the section and crowds around the edges of the contact bands. Auto mode
+therefore sets
+
+```
+w = rho(squeeze) · h
+```
+
+where `rho` comes from solving the real 2D diffusion field across the
+cross-section numerically (`rho` ≈ 1.35 at 20% squeeze). Both obvious guesses
+are wrong: the flank's *arc length* overstates permeation by ~50%, and the
+plain installed height understates it by ~26%. See
+[docs/shape-factor.md](docs/shape-factor.md) for the geometry, the boundary
+conditions, the validation and the table.
+
+Because `w/L` is a dimensionless 2D shape factor, it depends only on the
+squeeze fraction — never on the cord diameter.
 
 The seal is an annulus, not a flat slab: gas leaves the inner flank at
 radius `r₁ = d1/2` and must reach the outer flank at `r₂ = r₁ + L`,
@@ -264,6 +276,8 @@ assets/app.js                              DOM wiring, results rendering, chart 
 assets/permeability-data.js                  generated material reference library (see below)
 data/permeability-coefficients.csv              source CSV for the above
 generate-permeability-data.js                     regenerates assets/permeability-data.js from the CSV
+tools/shape-factor-solver.py               2D diffusion solve behind the shape factor
+docs/shape-factor.md                        how that number was derived and validated
 test/calc.test.js                          Node test suite for assets/calc.js
 test/permeability-data.test.js               Node test suite for the material reference library
 build-standalone.js                     bundles the above into dist/PermCalc.html (see above)

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   computePermeation,
-  ellipsePerimeter,
+  shapeFactorRho,
   convert,
   LENGTH_UNITS,
   PRESSURE_UNITS,
@@ -320,12 +320,8 @@ test("squeeze must be within [0, 100)", () => {
   );
 });
 
-test("ellipsePerimeter reduces to a circle's circumference when a == b", () => {
-  assert.ok(Math.abs(ellipsePerimeter(1.5, 1.5) - 2 * Math.PI * 1.5) < 1e-9);
-  assert.ok(Math.abs(ellipsePerimeter(0.004, 0.004) - 2 * Math.PI * 0.004) < 1e-12);
-});
 
-test("auto width is the installed cord height (the groove depth)", () => {
+test("auto width reproduces the numerically-solved 2D shape factor", () => {
   const base = {
     volume: 2, volumeUnit: "L",
     temperature: 23, temperatureUnit: "C",
@@ -338,10 +334,32 @@ test("auto width is the installed cord height (the groove depth)", () => {
     orings: [oring({ d2: 3, d2Unit: "mm", squeezePct: 20, widthMode: "auto" })],
   }).orings[0];
 
-  // 3 mm cord at 20% squeeze -> installed height 2.4 mm.
-  assert.ok(Math.abs(r.width - 0.0024) < 1e-12, `got ${r.width}`);
-  assert.ok(Math.abs(r.grooveDepth - 0.0024) < 1e-12);
-  assert.ok(Math.abs(r.width - r.semiMinor * 2) < 1e-15);
+  // w = rho * installed height; 3 mm cord at 20% squeeze -> h = 2.4 mm.
+  assert.ok(Math.abs(r.shapeRho - 1.3542) < 1e-9);
+  assert.ok(Math.abs(r.width - 1.3542 * 0.0024) < 1e-12, `got ${r.width}`);
+
+  // The whole point: w/L must equal the shape factor the 2D solve produced
+  // for 20% squeeze (S = 0.86668, see docs/shape-factor.md).
+  assert.ok(
+    Math.abs(r.width / r.pathLength - 0.86668) < 1e-4,
+    `w/L = ${r.width / r.pathLength}, expected the solved S = 0.86668`
+  );
+});
+
+test("the shape factor is dimensionless: it depends on squeeze, never on d2", () => {
+  for (const squeeze of [0.1, 0.2, 0.35]) {
+    const ref = shapeFactorRho(squeeze);
+    assert.ok(ref > 1.2 && ref < 1.6, `rho out of range at ${squeeze}`);
+  }
+  // Monotone decreasing, and clamped outside the solved range.
+  let prev = Infinity;
+  for (const sq of [0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7]) {
+    const v = shapeFactorRho(sq);
+    assert.ok(v < prev, `rho must decrease with squeeze, failed at ${sq}`);
+    prev = v;
+  }
+  assert.equal(shapeFactorRho(0), shapeFactorRho(0.025));
+  assert.equal(shapeFactorRho(0.95), shapeFactorRho(0.7));
 });
 
 test("groove depth and squeeze % are two views of the same geometry", () => {

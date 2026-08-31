@@ -409,9 +409,12 @@ function renderWorkedCalc(result, params) {
         + `   = free circle π/4·d2² = ${g((Math.PI / 4) * r.d2 * r.d2)} m²`,
       ``,
       `${pad("L  = diffusion path")}${g(r.pathLength)} m   (the major axis)`,
-      r.widthMode === "auto"
-        ? `${pad("w  = installed height")}${g(r.width)} m   (auto, = h)`
-        : `${pad("w  = exposed face height")}${raw.width} ${raw.widthUnit} = ${g(r.width)} m   (manual)`,
+      ...(r.widthMode === "auto"
+        ? [
+            `${pad("w  = ρ(squeeze) · h")}${g(r.shapeRho)} × ${g(minor)} = ${g(r.width)} m   (auto)`,
+            `${pad("  ρ from the 2D solve")}shape factor S = w/L = ${g(r.width / r.pathLength)}  (dimensionless)`,
+          ]
+        : [`${pad("w  = exposed face height")}${raw.width} ${raw.widthUnit} = ${g(r.width)} m   (manual)`]),
       ``,
       `annular conductance (gas spreads outward from r₁ to r₂):`,
       `${pad("  r₁ = d1/2")}${g(r.r1)} m`,
@@ -565,7 +568,7 @@ function recalculate() {
   renderWorkedCalc(result, params);
 }
 
-// In "auto" mode the face height is the installed cord height, so show the
+// In "auto" mode the face height is derived from the shape factor, so show the
 // computed value in the (disabled) input rather than leaving a stale number
 // the user might think is being used. Setting .value in script does not
 // re-fire input events, so this cannot loop.

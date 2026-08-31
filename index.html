@@ -147,7 +147,7 @@
             </label>
             <div class="value-unit two-select">
               <select class="oring-widthMode">
-                <option value="auto" selected>= installed height (auto)</option>
+                <option value="auto" selected>solved shape factor (auto)</option>
                 <option value="manual">enter manually</option>
               </select>
               <div class="value-unit">
@@ -162,9 +162,12 @@
             </div>
           </div>
           <p class="hint oring-auto-note">
-            Auto sets w to the installed cord height (the groove depth) — the flank
-            height gas enters through, measured across the gas path. Use manual only
-            if part of the flank is shielded (backup ring, dovetail groove).
+            Auto sets w = ρ(squeeze) × installed height, where ρ comes from a
+            numerical solution of the real 2D diffusion field across the cord
+            (≈1.35 at 20% squeeze). Neither obvious guess is right: the flank's
+            arc length overstates permeation by ~50%, the plain installed height
+            understates it by ~35%. Use manual only if part of the flank is
+            shielded (backup ring, dovetail groove).
             <strong>Cord diameter only changes the answer at a fixed groove depth</strong>:
             hold squeeze&nbsp;% fixed instead and you scale the whole cross-section
             with d2, which is very nearly a no-op.

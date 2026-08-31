@@ -201,8 +201,39 @@ export function convert(value, unit, table) {
  * approximation — well under 1e-5 relative error for the aspect ratios
  * a squeezed O-ring ever reaches).
  */
-export function ellipsePerimeter(a, b) {
-  return Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+// Effective-face-height correction rho(squeeze), from a numerical solution of
+// the 2D diffusion field across an installed cord (see docs/shape-factor.md).
+// The true dimensionless conductance of the cross-section is
+//   S = rho(squeeze) * (1 - squeeze)^2
+// and since the model writes S as w/L with L = d2/(1-squeeze), the effective
+// face height is simply w = rho(squeeze) * installed height.
+export const SHAPE_FACTOR_RHO = [
+  [0.025, 1.8397], [0.050, 1.6660], [0.075, 1.5485], [0.100, 1.4813],
+  [0.125, 1.4372], [0.150, 1.4004], [0.175, 1.3783], [0.200, 1.3542],
+  [0.225, 1.3398], [0.250, 1.3271], [0.275, 1.3168], [0.300, 1.3102],
+  [0.350, 1.2982], [0.400, 1.2905], [0.450, 1.2861], [0.500, 1.2834],
+  [0.600, 1.2813], [0.700, 1.2811],
+];
+
+/**
+ * Linear interpolation into SHAPE_FACTOR_RHO, clamped at both ends. Clamping
+ * is deliberate: below ~2.5% squeeze the contact band shrinks to a point and
+ * the true conductance diverges logarithmically (an unsqueezed cord does not
+ * seal at all), so extrapolating there would be meaningless rather than merely
+ * inaccurate. Above 70% it has already flattened out to ~1.281.
+ */
+export function shapeFactorRho(squeeze) {
+  const t = SHAPE_FACTOR_RHO;
+  if (squeeze <= t[0][0]) return t[0][1];
+  if (squeeze >= t[t.length - 1][0]) return t[t.length - 1][1];
+  for (let i = 1; i < t.length; i++) {
+    if (squeeze <= t[i][0]) {
+      const [x0, y0] = t[i - 1];
+      const [x1, y1] = t[i];
+      return y0 + ((y1 - y0) * (squeeze - x0)) / (x1 - x0);
+    }
+  }
+  return t[t.length - 1][1];
 }
 
 export function computeOringSI(r) {
@@ -247,13 +278,23 @@ export function computeOringSI(r) {
   const semiMajor = pathLength / 2;
   const semiMinor = grooveDepth / 2;
 
-  // The face gas enters through is the flank of the installed cord. Its
-  // height perpendicular to the gas path is the compressed height, i.e.
-  // the groove depth. (Using the flank's *arc length* instead overstates it
-  // and degenerates badly once the ellipse elongates: at high squeeze the
-  // half-perimeter tends to the major axis itself, so w/L -> 1 and the
-  // model stops responding to squeeze at all.)
-  const autoWidth = grooveDepth;
+  // The face gas enters through is the cord's flank, but its *effective*
+  // height is not simply the installed height: the diffusion field inside the
+  // cross-section spreads, and the flow crowds around the edges of the two
+  // contact bands. Both of the obvious guesses are wrong -- the flank's arc
+  // length overstates it (and degenerates: as the ellipse elongates the
+  // half-perimeter tends to the major axis, so w/L -> 1 and the model stops
+  // responding to squeeze), while the plain installed height understates it by
+  // ~35% at typical squeeze.
+  //
+  // SHAPE_FACTOR_RHO below is the correction, obtained by solving the real 2D
+  // steady-diffusion field numerically (see docs/shape-factor.md): the cord is
+  // modelled as an area-conserving truncated circle squashed between two
+  // impermeable gland faces, with the left flank held at unit concentration
+  // and the right at zero, and the conductance read off as the Dirichlet
+  // energy. Being a 2D shape factor it is dimensionless and depends only on
+  // the squeeze fraction, never on the cord diameter.
+  const autoWidth = shapeFactorRho(squeeze) * grooveDepth;
 
   const width =
     widthMode === "auto" ? autoWidth : convert(r.width, r.widthUnit, LENGTH_UNITS);
@@ -273,6 +314,7 @@ export function computeOringSI(r) {
   return {
     d1, d2, width, widthMode, autoWidth,
     compressionMode, grooveDepth, squeeze, squeezePct: squeeze * 100,
+    shapeRho: shapeFactorRho(squeeze),
     pathLength, semiMajor, semiMinor, r1, r2,
     P_SI, geometryFactor, K,
   };
