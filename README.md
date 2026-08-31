@@ -46,9 +46,11 @@ sync.
   - **Dimensions**: `d1` (inner diameter / ID, as shown in a standard
     O-ring schema), `d2` (free cross-section / cord diameter),
     **squeeze / compression** (percent of `d2` the cord is compressed in
-    its gland — typically 15–30% installed), and **contact width** (the
-    effective exposed sealing band width — the *depth* of the permeation
-    area, set by groove/contact geometry rather than by `d2` itself).
+    its gland — typically 15–30% installed), and **exposed face height
+    (`w`)** — the height of the rubber face gas enters through, measured
+    *along the squeeze axis*, at right angles to the gas path. It can be
+    derived automatically (half the squeezed ellipse's perimeter) or
+    entered manually.
   - **Permeation coefficient** of the gas through *that* O-ring's
     elastomer, *at the operating temperature above*. Pick a **material and
     temperature** from the built-in reference dropdown to fill this in
@@ -76,39 +78,47 @@ from the high-pressure side to the low-pressure side:
   perpendicular to the squeeze), so **more squeeze lengthens the path and
   reduces permeation**. A thicker cord also lengthens it, since `L` stays
   proportional to `d2`.
-- Permeation area: `A = π · d1 · width`, where `width` is the effective
-  contact width of the exposed sealing band (set by the groove/contact
-  geometry) — *independent* of `d2`, so permeation *increases* as `width`
-  increases.
+- Permeation area: `A = π · d1 · w`, where `w` is the **exposed face
+  height** — the height of the rubber face the gas enters through,
+  measured along the squeeze axis (at right angles to the gas path).
+  Permeation *increases* as `w` increases.
+
+  `w` has two modes. **Auto** sets it to half the squeezed ellipse's
+  perimeter — the arc facing the high-pressure side — using Ramanujan's
+  approximation. **Manual** takes it as an independent input. The choice
+  matters: in auto mode the ellipse's aspect ratio `b/a = (1 − squeeze)²`
+  depends only on squeeze, so `w` and `L` both scale with `d2` and it
+  cancels exactly — the answer becomes independent of cord diameter.
+  Use manual when comparing cord diameters in a fixed gland.
 
 So the geometry factor is:
 
 ```
-A / L = π · d1 · width · (1 − squeeze) / d2
+A / L = π · d1 · w · (1 − squeeze) / d2
 ```
 
 This means squeeze helps on both counts: it closes real bypass leak paths
 *and* lengthens the diffusion path that permeation must cross.
 
-This keeps `width` decoupled from `d2` on purpose: for a real, standard
+This keeps `w` decoupled from `d2` on purpose: for a real, standard
 permeability coefficient (Barrer, SI, ...) — defined via flat-membrane
 testing as `Flux = P · Area / Thickness` — `Area / Thickness` must have
-units of length. If `width` were instead tied to `d2` (as in a naive
+units of length. If `w` were instead tied to `d2` (as in a naive
 "unrolled torus band" with matching width and thickness), `d2` would
 cancel out of the ratio entirely and the result would become independent
-of cord diameter. Decoupling `width` from `d2` is what lets both
+of cord diameter. Decoupling `w` from `d2` is what lets both
 dimensions matter independently while keeping the permeability units
 dimensionally valid.
 
-**Do not set `width` equal to `d2`.** Doing so re-introduces exactly that
-cancellation and the model stops responding to cord diameter. `width` is
-the contact-band depth from your groove design; `d2` and `squeeze` set
+**Do not set `w` equal to `d2`.** Doing so re-introduces exactly that
+cancellation and the model stops responding to cord diameter. `w` is
+the exposed face height from your groove design; `d2` and `squeeze` set
 the barrier thickness. They answer different questions:
 
 - *"I changed to a thinner cord in the same gland"* → lower `d2`, and
   lower `squeeze` too (a thinner cord in a fixed-depth groove is
   compressed less) — check your actual gland depth.
-- *"I scaled the whole seal geometrically"* → if you scale `width` and
+- *"I scaled the whole seal geometrically"* → if you scale `w` and
   `d2` together at constant squeeze, permeation is genuinely unchanged.
   That is a real physical result, not a modelling artefact: geometrically
   similar seals at the same squeeze have the same permeation resistance.
@@ -118,7 +128,7 @@ the barrier thickness. They answer different questions:
 Steady-state Fickian permeation through O-ring `i`:
 
 ```
-Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · width_i · (1 − squeeze_i) / d2_i · (P_compartment − P_external)
+Q_i = P_i · (A_i / L_i) · ΔP = P_i · π · d1_i · w_i · (1 − squeeze_i) / d2_i · (P_compartment − P_external)
 ```
 
 where `P_i` is that O-ring's permeability coefficient (SI: `mol/(m·s·Pa)`).
@@ -126,7 +136,7 @@ Every O-ring vents the same compartment to the same external environment,
 so their molar flows simply add:
 
 ```
-Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · width_i · (1 − squeeze_i) / d2_i)
+Q_total = Σ_i Q_i = K_total · (P_compartment − P_external),   K_total = Σ_i (P_i · π · d1_i · w_i · (1 − squeeze_i) / d2_i)
 ```
 
 ### Pressure decay over time
@@ -181,7 +191,7 @@ value to Barrer or SI first rather than using the NTP option directly.
 - Permeability is assumed constant with pressure and independent of time
   (no swelling, plasticization, or aging effects).
 - The O-ring's exposed permeation geometry is approximated as described
-  above (linear diffusion across the cord, uniform contact width); it does
+  above (linear diffusion across the cord, uniform exposed face); it does
   not model the true 2D diffusion shape within the cross-section or
   squeeze-dependent contact patch geometry in detail.
 - The compartment gas is treated as ideal; for very high pressures a

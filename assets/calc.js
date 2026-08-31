@@ -8,10 +8,10 @@
 //     barrier (permeation drops as d2 rises); squeezing harder makes the
 //     cord bulge wider, lengthening the path (permeation drops with
 //     squeeze too).
-//     The exposed area that band diffuses through is A = pi * d1 * width,
-//     where "width" is the effective contact width of that exposed band —
-//     independent of d2, since it's set by the groove/contact geometry,
-//     not by the cord's own thickness. This keeps a real, standard
+//     The exposed area that band diffuses through is A = pi * d1 * w,
+//     where "w" is the exposed face height: the height of the face gas
+//     enters through, measured along the squeeze axis. It is either
+//     derived from the ellipse (half its perimeter) or given directly. This keeps a real, standard
 //     permeability coefficient (Barrer, SI, ...) dimensionally valid:
 //     the geometry factor k = A / L has units of length, as required by
 //     Q = P_SI * k * deltaP.
@@ -152,7 +152,7 @@ export function convert(value, unit, table) {
 /**
  * Convert one O-ring's raw form inputs into SI values plus its geometry
  * factor and permeation contribution
- * K_i = P_SI_i * pi * d1_i * width_i / (d2_i * (1 - squeeze_i)).
+ * K_i = P_SI_i * pi * d1_i * w_i / (d2_i * (1 - squeeze_i)).
  *
  * The installed O-ring is squeezed in its gland. Rubber is essentially
  * incompressible, so the circular cross-section does not just get thinner
@@ -176,22 +176,38 @@ export function convert(value, unit, table) {
  * @param {string} r.d2Unit
  * @param {number} r.squeezePct squeeze / compression, in percent of d2
  *   (typical installed O-rings: 15-30%). 0 means uncompressed.
- * @param {number} r.width effective contact width of the O-ring's exposed
- *   sealing band — the depth of the permeation area, independent of d2;
- *   wider band means more permeation
+ * @param {number} r.width exposed face height — the height of the rubber
+ *   face gas enters through, measured along the squeeze axis. Used only
+ *   when widthMode is "manual".
  * @param {string} r.widthUnit
+ * @param {"auto"|"manual"} [r.widthMode] "auto" derives the face height
+ *   from the ellipse itself (half its perimeter, i.e. the arc exposed to
+ *   the high-pressure side). Note that this makes the result independent
+ *   of d2: the ellipse's aspect ratio b/a = (1-squeeze)^2 depends only on
+ *   squeeze, so w and L scale with d2 together and cancel. "manual"
+ *   (the default) keeps the face height as an independent input, which is
+ *   what lets cord diameter affect the answer.
  * @param {number} r.permeability permeability coefficient value, at the
  *   compartment's operating temperature, for this O-ring's elastomer/gas pair
  * @param {string} r.permeabilityUnit
  */
+/**
+ * Perimeter of an ellipse with semi-axes a and b (Ramanujan's second
+ * approximation — well under 1e-5 relative error for the aspect ratios
+ * a squeezed O-ring ever reaches).
+ */
+export function ellipsePerimeter(a, b) {
+  return Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+}
+
 export function computeOringSI(r) {
   const d1 = convert(r.d1, r.d1Unit, LENGTH_UNITS);
   const d2 = convert(r.d2, r.d2Unit, LENGTH_UNITS);
-  const width = convert(r.width, r.widthUnit, LENGTH_UNITS);
   const squeezePct = r.squeezePct ?? 0;
+  const widthMode = r.widthMode === "auto" ? "auto" : "manual";
   const P_SI = convert(r.permeability, r.permeabilityUnit, PERMEABILITY_UNITS);
 
-  if (d1 <= 0 || d2 <= 0 || width <= 0) {
+  if (d1 <= 0 || d2 <= 0) {
     throw new Error("O-ring dimensions must be positive.");
   }
   if (!(squeezePct >= 0) || squeezePct >= 100) {
@@ -203,10 +219,24 @@ export function computeOringSI(r) {
   // Incompressible ellipse: area conserved, so minor = d2*(1-squeeze)
   // and major = d2/(1-squeeze). Gas crosses along the major axis.
   const pathLength = d2 / (1 - squeeze);
+  const semiMajor = pathLength / 2;
+  const semiMinor = (d2 * (1 - squeeze)) / 2;
+
+  // Half the ellipse's perimeter: the arc facing the high-pressure side,
+  // which is the surface gas actually enters through.
+  const autoWidth = ellipsePerimeter(semiMajor, semiMinor) / 2;
+
+  const width =
+    widthMode === "auto" ? autoWidth : convert(r.width, r.widthUnit, LENGTH_UNITS);
+  if (!(width > 0)) throw new Error("O-ring dimensions must be positive.");
+
   const geometryFactor = (Math.PI * d1 * width) / pathLength; // = A/L
   const K = P_SI * geometryFactor; // mol/(s*Pa) per unit deltaP
 
-  return { d1, d2, width, squeezePct, pathLength, P_SI, geometryFactor, K };
+  return {
+    d1, d2, width, widthMode, autoWidth, squeezePct,
+    pathLength, semiMajor, semiMinor, P_SI, geometryFactor, K,
+  };
 }
 
 /**

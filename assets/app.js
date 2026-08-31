@@ -1,6 +1,7 @@
 import {
   computePermeation,
   GASES,
+  LENGTH_UNITS,
   secondsTo,
   bestDurationUnit,
 } from "./calc.js";
@@ -138,6 +139,7 @@ function readOrings() {
     d2Unit: card.querySelector(".oring-d2Unit").value,
     width: parseFloat(card.querySelector(".oring-width").value),
     widthUnit: card.querySelector(".oring-widthUnit").value,
+    widthMode: card.querySelector(".oring-widthMode").value,
     squeezePct: parseFloat(card.querySelector(".oring-squeeze").value),
     permeability: parseFloat(card.querySelector(".oring-permeability").value),
     permeabilityUnit: card.querySelector(".oring-permeabilityUnit").value,
@@ -259,7 +261,7 @@ function renderBreakdown(result) {
   const s = result.si;
   const rows = [
     ["Decay time-constant α", `${fmt(s.alpha)} s⁻¹  (1/α = ${fmtDuration(1 / s.alpha)})`],
-    ["Combined geometry×permeability  K_total = Σ(P·π·d1·width·(1−squeeze) / d2)", `${fmt(s.K_total)} mol/(s·Pa)`],
+    ["Combined geometry×permeability  K_total = Σ(P·π·d1·w·(1−squeeze) / d2)", `${fmt(s.K_total)} mol/(s·Pa)`],
     ["P₀ (SI)", `${fmt(s.P0)} Pa`],
     ["Lockout pressure (SI)", `${fmt(s.Plock)} Pa`],
     ["External pressure (SI)", `${fmt(s.Pext)} Pa`],
@@ -269,8 +271,8 @@ function renderBreakdown(result) {
   result.orings.forEach((r, i) => {
     const share = (100 * r.K / s.K_total).toFixed(1);
     rows.push([
-      `O-ring ${i + 1}: d1 / d2 / width / P (SI)`,
-      `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.width)} m / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
+      `O-ring ${i + 1}: d1 / d2 / w / P (SI)`,
+      `${fmt(r.d1)} m / ${fmt(r.d2)} m / ${fmt(r.width)} m${r.widthMode === "auto" ? " (auto)" : ""} / ${fmt(r.P_SI)} mol/(m·s·Pa)  — ${share}% of total loss`,
     ]);
     rows.push([
       `O-ring ${i + 1}: diffusion path  d2 ÷ (1−squeeze)  [ellipse major axis]`,
@@ -299,6 +301,7 @@ function recalculate() {
   }
   for (const [i, r] of params.orings.entries()) {
     for (const [key, value] of Object.entries(r)) {
+      if (key === "width" && r.widthMode === "auto") continue;
       if (typeof value === "number" && !Number.isFinite(value)) {
         showError(`O-ring ${i + 1}: "${key}" is missing or not a number.`);
         return;
@@ -341,8 +344,28 @@ function recalculate() {
   $("stat-charge-mass").textContent =
     result.mass0 != null ? `${fmt(result.mass0 * 1000)} g` : "";
 
+  syncAutoWidths(result);
   drawChart(result);
   renderBreakdown(result);
+}
+
+// In "auto" mode the face height is derived from the ellipse, so show the
+// computed value in the (disabled) input rather than leaving a stale number
+// the user might think is being used. Setting .value in script does not
+// re-fire input events, so this cannot loop.
+function syncAutoWidths(result) {
+  const cards = oringList.querySelectorAll(".oring-card");
+  cards.forEach((card, i) => {
+    const r = result.orings[i];
+    if (!r) return;
+    const input = card.querySelector(".oring-width");
+    const isAuto = r.widthMode === "auto";
+    input.disabled = isAuto;
+    if (isAuto) {
+      const unit = card.querySelector(".oring-widthUnit").value;
+      input.value = (r.width / LENGTH_UNITS[unit]).toFixed(4).replace(/\.?0+$/, "");
+    }
+  });
 }
 
 $("calc-form").addEventListener("submit", (e) => {

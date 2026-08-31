@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   computePermeation,
+  ellipsePerimeter,
   convert,
   LENGTH_UNITS,
   PRESSURE_UNITS,
@@ -304,6 +305,82 @@ test("squeeze must be within [0, 100)", () => {
     () => computePermeation({ ...base, orings: [oring({ squeezePct: -5 })] }),
     /squeeze/i
   );
+});
+
+test("ellipsePerimeter reduces to a circle's circumference when a == b", () => {
+  assert.ok(Math.abs(ellipsePerimeter(1.5, 1.5) - 2 * Math.PI * 1.5) < 1e-9);
+  assert.ok(Math.abs(ellipsePerimeter(0.004, 0.004) - 2 * Math.PI * 0.004) < 1e-12);
+});
+
+test("auto face height is half the ellipse perimeter", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const r = computePermeation({
+    ...base,
+    orings: [oring({ d2: 3, d2Unit: "mm", squeezePct: 20, widthMode: "auto" })],
+  }).orings[0];
+
+  const expected = ellipsePerimeter(r.semiMajor, r.semiMinor) / 2;
+  assert.ok(Math.abs(r.width - expected) / expected < 1e-12);
+  // 3 mm cord at 20% squeeze -> ellipse 2.4 x 3.75 mm -> half perimeter ~4.889 mm
+  assert.ok(Math.abs(r.width - 0.004889) < 2e-6, `got ${r.width}`);
+});
+
+test("auto mode makes the result independent of d2 (the ellipse scales with it)", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const ref = computePermeation({
+    ...base, orings: [oring({ d2: 3, squeezePct: 20, widthMode: "auto" })],
+  });
+  for (const d2 of [1, 2, 6, 10]) {
+    const other = computePermeation({
+      ...base, orings: [oring({ d2, squeezePct: 20, widthMode: "auto" })],
+    });
+    assert.ok(
+      Math.abs(other.si.K_total - ref.si.K_total) / ref.si.K_total < 1e-12,
+      `auto mode should not depend on d2, but d2=${d2} differed`
+    );
+  }
+});
+
+test("manual mode keeps d2 sensitivity that auto mode gives up", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const thick = computePermeation({
+    ...base, orings: [oring({ d2: 6, squeezePct: 20, widthMode: "manual" })],
+  });
+  const thin = computePermeation({
+    ...base, orings: [oring({ d2: 2, squeezePct: 20, widthMode: "manual" })],
+  });
+  assert.ok(thin.tLockoutSeconds < thick.tLockoutSeconds);
+});
+
+test("auto mode still responds to squeeze", () => {
+  const base = {
+    volume: 2, volumeUnit: "L",
+    temperature: 23, temperatureUnit: "C",
+    p0: 200, p0Unit: "bar",
+    pLock: 100, pLockUnit: "bar",
+    pExt: 1, pExtUnit: "bar",
+  };
+  const loose = computePermeation({ ...base, orings: [oring({ squeezePct: 0, widthMode: "auto" })] });
+  const tight = computePermeation({ ...base, orings: [oring({ squeezePct: 40, widthMode: "auto" })] });
+  assert.ok(tight.tLockoutSeconds > loose.tLockoutSeconds);
 });
 
 test("secondsTo converts across duration units", () => {

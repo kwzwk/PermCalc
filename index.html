@@ -76,8 +76,8 @@
           permeation losses add together. Squeezing deforms the round cord into an
           equal-area ellipse, and the gas crosses along its major axis, so the
           diffusion path is d2 ÷ (1 − squeeze): a thicker cord or more squeeze
-          both lengthen it (less permeation). A wider contact band exposes more
-          area, increasing permeation.
+          both lengthen it (less permeation). A taller exposed face (w) means more
+          area, increasing permeation — see the drawings below.
         </p>
         <div id="oring-list"></div>
         <button type="button" id="add-oring" class="secondary-button">+ Add O-ring</button>
@@ -126,20 +126,32 @@
               <select disabled><option>%</option></select>
             </div>
           </div>
-          <div class="field">
-            <label>Contact width
-              <span class="tip" title="Effective width of the O-ring's sealing band exposed to the pressure differential — the depth of the permeation area, set by groove/contact geometry rather than by d2 itself. Wider = more exposed area = more permeation.">?</span>
+          <div class="field wide">
+            <label>Exposed face height (w)
+              <span class="tip" title="The height of the rubber face gas enters through, measured ALONG the squeeze axis — at right angles to the gas path. See the dimensioned drawings below the calculator.">?</span>
             </label>
-            <div class="value-unit">
-              <input type="number" class="oring-width" step="any" min="0" value="3" />
-              <select class="oring-widthUnit">
-                <option value="mm" selected>mm</option>
-                <option value="cm">cm</option>
-                <option value="m">m</option>
-                <option value="in">in</option>
+            <div class="value-unit two-select">
+              <select class="oring-widthMode">
+                <option value="auto" selected>½ ellipse perimeter (auto)</option>
+                <option value="manual">enter manually</option>
               </select>
+              <div class="value-unit">
+                <input type="number" class="oring-width" step="any" min="0" value="3" />
+                <select class="oring-widthUnit">
+                  <option value="mm" selected>mm</option>
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                  <option value="in">in</option>
+                </select>
+              </div>
             </div>
           </div>
+          <p class="hint oring-auto-note">
+            Auto takes the arc of the squeezed cord facing the high-pressure side.
+            Because that arc scales with d2 exactly as the path does, auto makes the
+            result <strong>independent of d2</strong> — switch to manual if you are
+            comparing cord diameters in a fixed gland.
+          </p>
           <div class="field wide oring-material-row">
             <label>Reference material
               <span class="tip" title="Optional: pick a material and temperature from the built-in reference library to fill in the permeability coefficient below, filtered to the gas selected above. See data/permeability-coefficients.csv to add more.">?</span>
@@ -272,6 +284,161 @@
     </div>
   </section>
 </main>
+
+<section class="panel explainer" id="geometry-explainer">
+  <details>
+    <summary>What these O-ring dimensions mean (drawings)</summary>
+    <p class="hint">
+      Gas crosses the squeezed cord along the ellipse's <em>long</em> axis — that is the
+      permeation path <strong>L</strong>. The exposed face height <strong>w</strong> is the
+      <em>height</em> of the rubber face it enters through, measured along the squeeze axis,
+      at right angles to the flow.
+    </p>
+    <figure>
+  <svg viewBox="0 0 780 370" role="img" aria-label="Cross-section of a squeezed O-ring in a gland. The cord is compressed vertically into an ellipse. Gas flows horizontally from the high-pressure side, through the ellipse's long axis, to the low-pressure side. The exposed face height w is the vertical height of the entry face.">
+    <defs>
+      <marker id="pc-flowA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--warn)"/>
+      </marker>
+      <marker id="pc-dimB" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M 0 5 L 10 2 L 10 8 z" fill="var(--accent)"/>
+      </marker>
+      <marker id="pc-sqA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-strong, var(--border))"/>
+      </marker>
+      <pattern id="pc-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="0" x2="0" y2="7" stroke="var(--border-strong, var(--border))" stroke-width="1.1" opacity="0.55"/>
+      </pattern>
+    </defs>
+
+    <!-- top flange -->
+    <rect x="120" y="58" width="580" height="54" fill="var(--border)" opacity="0.3"/>
+    <rect x="120" y="58" width="580" height="54" fill="url(#pc-hatch)"/>
+    <line x1="120" y1="112" x2="700" y2="112" stroke="var(--border-strong, var(--border))" stroke-width="1.8"/>
+    <text class="svg-muted" x="134" y="84">upper flange</text>
+
+    <!-- bottom flange with groove -->
+    <path d="M120,112 L340,112 L340,192 L520,192 L520,112 L700,112 L700,268 L120,268 Z"
+          fill="var(--border)" opacity="0.3"/>
+    <path d="M120,112 L340,112 L340,192 L520,192 L520,112 L700,112 L700,268 L120,268 Z"
+          fill="url(#pc-hatch)"/>
+    <path d="M120,112 L340,112 L340,192 L520,192 L520,112 L700,112 L700,268 L120,268 Z"
+          fill="none" stroke="var(--border-strong, var(--border))" stroke-width="1.8"/>
+    <text class="svg-muted" x="134" y="256">lower flange</text>
+
+    <!-- free cord outline (dashed) -->
+    <circle cx="430" cy="152" r="50" fill="none" stroke="var(--accent)"
+            stroke-width="1.3" stroke-dasharray="6 5" opacity="0.8"/>
+
+    <!-- squeezed ellipse -->
+    <ellipse cx="430" cy="152" rx="62.5" ry="40" fill="var(--accent-2)" opacity="0.42"
+             stroke="var(--accent)" stroke-width="2"/>
+
+    <!-- squeeze arrows -->
+    <line x1="378" y1="74" x2="378" y2="104" stroke="var(--border-strong, var(--border))" stroke-width="1.6" marker-end="url(#pc-sqA)"/>
+    <line x1="482" y1="74" x2="482" y2="104" stroke="var(--border-strong, var(--border))" stroke-width="1.6" marker-end="url(#pc-sqA)"/>
+    <line x1="378" y1="230" x2="378" y2="200" stroke="var(--border-strong, var(--border))" stroke-width="1.6" marker-end="url(#pc-sqA)"/>
+    <line x1="482" y1="230" x2="482" y2="200" stroke="var(--border-strong, var(--border))" stroke-width="1.6" marker-end="url(#pc-sqA)"/>
+    <text class="svg-muted" x="430" y="48" text-anchor="middle">squeeze 20%</text>
+
+    <!-- HIGH pressure side -->
+    <text class="svg-flow" x="156" y="132" text-anchor="middle">HIGH pressure</text>
+    <line x1="126" y1="152" x2="186" y2="152" stroke="var(--warn)" stroke-width="1.6" marker-end="url(#pc-flowA)"/>
+    <line x1="126" y1="176" x2="186" y2="176" stroke="var(--warn)" stroke-width="1.6" marker-end="url(#pc-flowA)"/>
+
+    <!-- gas crossing the ellipse -->
+    <line x1="367" y1="152" x2="497" y2="152" stroke="var(--warn)" stroke-width="2.4" marker-end="url(#pc-flowA)"/>
+    <text class="svg-flow" x="430" y="144" text-anchor="middle">gas</text>
+
+    <!-- LOW pressure side -->
+    <text class="svg-flow" x="626" y="132" text-anchor="middle">LOW pressure</text>
+    <line x1="556" y1="152" x2="626" y2="152" stroke="var(--warn)" stroke-width="1.6" marker-end="url(#pc-flowA)"/>
+
+    <!-- MAJOR axis = permeation path L -->
+    <line x1="367.5" y1="214" x2="492.5" y2="214" stroke="var(--warn)" stroke-width="1.4"
+          marker-start="url(#pc-flowA)" marker-end="url(#pc-flowA)"/>
+    <rect x="330" y="224" width="200" height="20" rx="4" fill="var(--panel)"/>
+    <text class="svg-flow" x="430" y="238" text-anchor="middle">L = d2 ÷ (1−sq) = 125</text>
+
+    <!-- w : vertical height of the entry face -->
+    <line x1="367.5" y1="112" x2="288" y2="112" stroke="var(--accent)" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="367.5" y1="192" x2="288" y2="192" stroke="var(--accent)" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="298" y1="112" x2="298" y2="192" stroke="var(--accent)" stroke-width="1.6"
+          marker-start="url(#pc-dimB)" marker-end="url(#pc-dimB)"/>
+    <rect x="212" y="140" width="76" height="38" rx="4" fill="var(--panel)"/>
+    <text class="svg-dim" x="250" y="155" text-anchor="middle">w = 80</text>
+    <text class="svg-dim" x="250" y="172" text-anchor="middle">face height</text>
+
+    <!-- notes -->
+    <text class="svg-muted" x="430" y="300" text-anchor="middle">dashed outline = the free cord, d2 = 100</text>
+    <text class="svg-muted" x="430" y="322" text-anchor="middle">ellipse: minor 80 × major 125 — same area as the Ø100 circle</text>
+    <text class="svg-muted" x="430" y="344" text-anchor="middle">π/4 · 100² = π/4 · 125 · 80 = 7854</text>
+  </svg>
+  <figcaption>
+    The gas travels <b>horizontally</b>, along the ellipse's long axis — that is the
+    permeation path <b>L</b>. The input <b>w</b>: the
+    <b>vertical</b> height of the rubber face the gas enters through. It is measured
+    along the squeeze axis, at right angles to the flow.
+  </figcaption>
+</figure>
+    <figure>
+  <svg viewBox="0 0 720 300" role="img" aria-label="The seal unrolled into a rectangular slab. The entry face measures the seal circumference by w. Gas crosses the slab's depth L. Area equals pi times d1 times w, divided by path length L.">
+    <defs>
+      <marker id="pc-flowB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--warn)"/>
+      </marker>
+      <marker id="pc-dimC" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M 0 5 L 10 2 L 10 8 z" fill="var(--accent)"/>
+      </marker>
+    </defs>
+
+    <!-- back face -->
+    <polygon points="230,70 610,70 610,150 230,150" fill="var(--accent-2)" opacity="0.18"
+             stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <!-- connecting edges -->
+    <line x1="150" y1="130" x2="230" y2="70"  stroke="var(--accent)" stroke-width="1.2"/>
+    <line x1="530" y1="130" x2="610" y2="70"  stroke="var(--accent)" stroke-width="1.2"/>
+    <line x1="150" y1="210" x2="230" y2="150" stroke="var(--accent)" stroke-width="1.2"/>
+    <line x1="530" y1="210" x2="610" y2="150" stroke="var(--accent)" stroke-width="1.2"/>
+    <!-- front (entry) face -->
+    <rect x="150" y="130" width="380" height="80" fill="var(--accent-2)" opacity="0.42"
+          stroke="var(--accent)" stroke-width="2"/>
+
+    <!-- gas entering -->
+    <line x1="86" y1="156" x2="142" y2="156" stroke="var(--warn)" stroke-width="1.8" marker-end="url(#pc-flowB)"/>
+    <line x1="86" y1="186" x2="142" y2="186" stroke="var(--warn)" stroke-width="1.8" marker-end="url(#pc-flowB)"/>
+    <text class="svg-flow" x="114" y="140" text-anchor="middle">gas</text>
+
+    <!-- depth arrow = L -->
+    <line x1="300" y1="190" x2="380" y2="130" stroke="var(--warn)" stroke-width="2.2" marker-end="url(#pc-flowB)"/>
+    <text class="svg-flow" x="396" y="126">L = d2 ÷ (1−squeeze)</text>
+
+    <!-- w dimension -->
+    <line x1="128" y1="130" x2="128" y2="210" stroke="var(--accent)" stroke-width="1.6"
+          marker-start="url(#pc-dimC)" marker-end="url(#pc-dimC)"/>
+    <text class="svg-dim" x="98" y="175" text-anchor="middle">w</text>
+
+    <!-- circumference dimension -->
+    <line x1="150" y1="238" x2="530" y2="238" stroke="var(--accent)" stroke-width="1.6"
+          marker-start="url(#pc-dimC)" marker-end="url(#pc-dimC)"/>
+    <text class="svg-dim" x="340" y="258" text-anchor="middle">π · d1  (seal circumference)</text>
+
+    <text class="svg-label" x="340" y="288" text-anchor="middle">entry face area A = π · d1 · w</text>
+  </svg>
+  <figcaption>
+    The entry face (solid) is what the gas enters; <b>L</b> is how far it has to get
+    to the far face (dashed). Everything the permeability coefficient needs is
+    <b>A / L</b>.
+  </figcaption>
+</figure>
+    <p class="hint">
+      In "auto" mode w is half the ellipse's perimeter — the arc facing the high-pressure
+      side. That arc scales with d2 exactly as L does, so auto mode is independent of cord
+      diameter; use manual when comparing cords in a fixed gland.
+    </p>
+  </details>
+</section>
+
 
 <footer>
   <p>
